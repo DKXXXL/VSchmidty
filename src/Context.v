@@ -1,8 +1,10 @@
-Module Context.
-
 Require Import Maps.
 Require Import Coq.Relations.Relation_Definitions.
 Require Import LibTactics.
+
+Module Context.
+
+
 
 Inductive Context {type : Set} : Type :=
 | empty : Context

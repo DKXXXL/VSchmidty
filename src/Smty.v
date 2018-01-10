@@ -1,11 +1,10 @@
-(*
-    Schmidty.
-*)
-Add LoadPath "src/formal".
+Add LoadPath "src".
 Require Import Maps.
 Require Import Context.
 Import Context.Context.
 Require Import Coq.Lists.List.
+
+Module Smty.
 
 Definition tyid := id.
 
@@ -16,7 +15,6 @@ Inductive ty : Set :=
     | TBool : ty
     | TSum : ty -> ty -> ty
     | TNone : ty
-    | TRcd : ty -> list (id* ty) -> ty
     | TVar : tyid -> ty.
 
 Inductive tm : Set :=
@@ -25,6 +23,7 @@ Inductive tm : Set :=
     | tvar : id -> tm
     | tzero : tm
     | tsuc : tm -> tm 
+    | tdec : tm -> tm
     | tngt : tm -> tm -> tm 
     | tnlt : tm -> tm -> tm 
     | tneq : tm -> tm -> tm
@@ -33,6 +32,9 @@ Inductive tm : Set :=
     | tfun : id -> ty -> tm -> tm 
     | tapp : tm -> tm -> tm
     | tlet : id -> tm -> tm -> tm
+    (*
+        it's acutally letrec.
+    *)
     | ttrue : tm
     | tfalse : tm 
     | tbeq : tm -> tm -> tm 
@@ -57,9 +59,40 @@ Inductive tm : Set :=
             letRcd (i J (Nat Nat))
             then i :: Int -> Int -> J
         *)
-    | tfield : ty -> id -> tm -> tm 
+    | tfield : ty -> id -> tm 
         (*
             TypeA.a :: TypeA -> Int
         *)
     | tseq : tm -> tm.
 
+Definition Rcd : Set := ty * (list (id * ty)).
+
+Definition directSubty (ctx : Context (type := Rcd)) (i : tyid) : option ty :=
+    match (byContext ctx i) with
+    | None => None
+    | Some (a, _) => Some a
+    end.
+    
+
+Inductive subty (ctx : Context (type := Rcd)) : ty -> ty -> Prop :=
+| stfun : forall x x' y y',
+            subty ctx x x' ->
+            subty ctx y' y ->
+            subty ctx (TFun x y) (TFun x' y')
+| stsum : forall x x' y y',
+            subty ctx x x' ->
+            subty ctx y y' ->
+            subty ctx (TSum x y) (TSum x' y')
+| strcdn : forall i,
+            subty ctx (TVar i) TNone
+| strcdc : forall i x,
+            directSubty ctx i = Some x ->
+            subty ctx (TVar i) x
+| strcd_refl : forall t,
+            subty ctx t t
+| strcd_trans : forall t0 t1 t2,
+            subty ctx t0 t1 ->
+            subty ctx t1 t2 ->
+            subty ctx t0 t2.
+
+End Smty.
