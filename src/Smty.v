@@ -15,7 +15,13 @@ Inductive ty : Set :=
     | TBool : ty
     | TSum : ty -> ty -> ty
     | TNone : ty
-    | TVar : tyid -> ty.
+    | TVar : tyid -> ty
+    (* TRcd won't appear. Shouldn't appear. 
+        It will only appear in Structual Mode.
+        But at first, at type checking stage, it's 
+        Nominal Mode.
+    *)
+    | TRcd : ty -> list (id* ty) -> ty.
 
 Inductive tm : Set :=
     | tnone : tm 
@@ -31,7 +37,7 @@ Inductive tm : Set :=
     | tceq : tm -> tm -> tm 
     | tfun : id -> ty -> tm -> tm 
     | tapp : tm -> tm -> tm
-    | tlet : id -> tm -> tm -> tm
+    | tlet : id -> ty -> tm -> tm -> tm
     (*
         it's acutally letrec.
     *)
