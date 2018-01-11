@@ -6,17 +6,19 @@ Import Context.Context.
 Require Import Coq.Lists.List.
 Require Import Smty.
 
-Import Smty.Smty.
+Import SSmty.SSmty.
 
 
-Module SmtyP.
-(* Nominal Typing. *)
+Module SSmtyP.
+(* Structual Typing *)
 
+(*
 Fixpoint rcd_cons_ty (rcd : list (id * ty)) (retty : ty) : ty :=
     match rcd with
     | nil => retty
     | (_, h)::t => TFun h (rcd_cons_ty t retty)
     end. 
+*)
 
 Fixpoint rcd_field_ty (rcd: list (id * ty)) (field : id) : option ty :=
     match rcd with
@@ -114,3 +116,4 @@ Inductive has_type : Context ty -> tm -> ty -> Prop :=
     has_type (tseq t0 t1) T1.
 
 
+End SSmtyP.
