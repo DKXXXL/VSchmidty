@@ -254,4 +254,15 @@ forall A B: Prop,
 split; intros; destruct H; destruct H0; try tauto.
 Defined.
 
+Ltac poses x h:=
+  pose x as LLLLLL;
+  generalize LLLLLL;
+  clear LLLLLL;
+  intro h.
 
+Ltac poses' x:=
+  pose x as LLLLLL;
+  generalize LLLLLL;
+  clear LLLLLL;
+  let k := fresh in
+  intro k.

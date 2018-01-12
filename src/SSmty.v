@@ -56,7 +56,7 @@ Inductive tm : Set :=
         (*
             TypeA.a :: TypeA -> Int
         *)
-    | tseq : tm -> tm.
+    | tseq : tm -> tm -> tm.
 
 
 
