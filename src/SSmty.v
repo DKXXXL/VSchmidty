@@ -20,9 +20,29 @@ Inductive ty : Set :=
     (* There won't be any variable. *)
     | TRcons : id -> ty -> ty -> ty.
 
+Inductive only_rcd : ty -> Prop :=
+    | odNone : only_rcd TNone
+    | odRcd : forall i T T',
+        only_rcd T' ->
+        only_rcd (TRcons i T T').
+
+Inductive wf_ty : ty -> Prop :=
+    | wfNat : wf_ty TNat
+    | wfChr : wf_ty TChr
+    | wfFun : forall i o, wf_ty i -> wf_ty o -> wf_ty (TFun i o)
+    | wfSum : forall l r, wf_ty l -> wf_ty r -> wf_ty (TSum l r)
+    | wfNone : wf_ty TNone
+    | wfRcd : forall i T T',
+        wf_ty T ->
+        wf_ty T' ->
+        only_rcd T' ->
+        wf_ty (TRcons i T T').
+
+
+
 Inductive tm : Set :=
     | tnone : tm 
-    | trcons : tm -> tm -> tm
+    | trcons : id -> tm -> tm -> tm
     | tif: tm -> tm -> tm -> tm 
     | tvar : id -> tm
     | tzero : tm
@@ -33,17 +53,17 @@ Inductive tm : Set :=
     | tneq : tm -> tm -> tm
     | tchr : nat -> tm 
     | tceq : tm -> tm -> tm 
-    | tfun : id -> ty -> tm -> tm 
+    | tfun : id -> forall (T: ty),  wf_ty T -> tm -> tm 
     | tapp : tm -> tm -> tm
-    | tlet : id -> ty -> tm -> tm -> tm
+    | tlet : id -> forall (T: ty),  wf_ty T -> tm -> tm -> tm
     (*
         it's acutally letrec.
     *)
     | ttrue : tm
     | tfalse : tm 
     | tbeq : tm -> tm -> tm 
-    | tleft : tm -> ty -> tm 
-    | tright : ty -> tm -> tm
+    | tleft : tm -> forall (T: ty),  wf_ty T -> tm 
+    | tright: forall (T : ty),  wf_ty T -> tm -> tm
     | tcase : tm -> tm -> tm -> tm 
         (*
             tcase (\ x -> x) (\ y -> y)
@@ -52,7 +72,7 @@ Inductive tm : Set :=
             type information is 
             lexical scoped
         *)
-    | tfield : ty -> id -> tm 
+    | tfield : forall (T: ty),  wf_ty T -> id -> tm 
         (*
             TypeA.a :: TypeA -> Int
         *)
@@ -70,7 +90,12 @@ Inductive subty  : ty -> ty -> Prop :=
             subty x x' ->
             subty y y' ->
             subty (TSum x y) (TSum x' y')
-| strcd
+| strcdd : forall i p1 p2 q,
+            subty p1 p2 ->
+            subty (TRcons i p1 q) (TRcons i p2 q)
+| strcdw : forall i p q1 q2,
+            subty q1 q2 ->
+            subty (TRcons i p q1) q2
 | st_refl : forall t,
             subty t t
 | st_trans : forall t0 t1 t2,

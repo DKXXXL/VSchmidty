@@ -4,7 +4,7 @@ Require Import Context.
 
 Import Context.Context.
 Require Import Coq.Lists.List.
-Require Import Smty.
+Require Import SSmty.
 
 Import SSmty.SSmty.
 
@@ -34,12 +34,17 @@ Inductive has_type : Context ty -> tm -> ty -> Prop :=
 | ht_none : 
     forall ctx,
         has_type ctx tnone TNone
+| ht_rcd :
+    forall ctx i t0 t1 T T',
+        has_type t0 T ->
+        has_type t1 T' ->
+        has_type ctx (trcons i t0 t1) (TRcons i T T')
 | ht_if : 
-    forall vctx crit tb fb T,
-    has_type vctx crit TBool ->
-    has_type vctx tb T ->
-    has_type vctx fb T ->
-    has_type vctx (tif crit tb fb) T
+    forall ctx crit tb fb T,
+    has_type ctx crit TBool ->
+    has_type ctx tb T ->
+    has_type ctx fb T ->
+    has_type ctx (tif crit tb fb) T
 | ht_var: forall ctx T i,
     byContext ctx i = T ->
     has_type ctx (tvar i) T
@@ -103,10 +108,6 @@ Inductive has_type : Context ty -> tm -> ty -> Prop :=
     has_type ctx tl (TFun TL TO) ->
     has_type ctx tr (TFun TR TO) ->
     has_type ctx (tcase crit tl tr) TO
-| ht_letrcd1 : forall ctx rcd tid suty TO,
-    subty (TRcd tid suty rcd) suty ->
-    has_type (update cons (rcd_cons_ty rcd tty) ctx) body TO ->
-    has_type ctx (tletrcd cons tid1 suty rcd body) TO
 | ht_field : forall ctx suty i,
     rcd_field_ty rcd i = Some T ->
     has_type (ht_field (TRcd tid suty rcd) i) (TFun (TRcd tid suty rcd) T)

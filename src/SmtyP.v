@@ -6,6 +6,8 @@ Import Context.Context.
 Require Import Coq.Lists.List.
 Require Import Smty.
 Require Import LibTactics.
+Require Import SSmty.
+
 
 Import Smty.Smty.
 
@@ -100,7 +102,7 @@ Inductive has_type : Context -> tm -> ty -> Prop :=
     has_type ctx tr (TFun TR TO) ->
     has_type ctx (tcase crit tl tr) TO
 | ht_letrcd : forall ctx cons rcd tid suty body TO,
-    subty (TRcd tid suty rcd) suty ->
+    inheritable suty ->
     has_type (update cons (rcd_cons_ty rcd (TRcd tid suty rcd)) ctx) body TO ->
     has_type ctx (tletrcd cons tid suty rcd body) TO
 | ht_field : forall ctx rcd i tid suty T,
@@ -113,6 +115,40 @@ Inductive has_type : Context -> tm -> ty -> Prop :=
 
 Hint Constructors has_type.
 
+
+Definition check_inheritable (T : ty) : bool :=
+match T with
+| TNone => true 
+| TRcd _ _ _ => true 
+| _ => false
+end.
+
+Lemma cinh_t_inh :
+forall t,
+    check_inheritable t = true ->
+    inheritable t.
+intro t; induction t; intros; try discriminate; cbn in *; eauto.
+Qed.
+
+
+
+Lemma inh_cinh_t :
+forall t,
+    inheritable t ->
+    check_inheritable t = true.
+intros t h; induction h; intros; try discriminate; cbn in *; eauto.
+Qed.
+
+Lemma cinh_f_ninh :
+forall t,
+check_inheritable t = false ->
+~inheritable t.
+
+intro t; induction t; intros; intro h'; 
+try (destruct h'; subst; eauto) ;try discriminate; cbn in *; eauto.
+Qed.
+
+Hint Resolve cinh_t_inh inh_cinh_t cinh_f_ninh.
 
 Fixpoint nominal_typed (ctx: Context) (t : tm) : option ty :=
     match t with
@@ -198,7 +234,9 @@ Fixpoint nominal_typed (ctx: Context) (t : tm) : option ty :=
         | _, _, _ => None
         end
     | tletrcd cons' T suTy rcd body =>
+        if(check_inheritable suTy) then
         nominal_typed (update cons' (rcd_cons_ty rcd (TRcd T suTy rcd)) ctx) body
+        else None
     | tfield (TRcd a b rcd) i => 
         match (rcd_field_ty rcd i) with
         | Some TO => Some (TFun (TRcd a b rcd) TO)
@@ -230,7 +268,10 @@ Theorem typed__nominal_typed :
     cbn; 
     keep_rewrite; eauto using eq_ty_dec_id.
 
-    repeat (rewrite eq_ty_dec_bool_true). cbn. auto.
+    repeat (rewrite eq_ty_dec_bool_true). cbn. eauto.
+    poses' (inh_cinh_t _ H). rewrite H0; cbn; eauto.
+
+    
 Qed.
 
 Ltac destruct_match :=
@@ -306,6 +347,7 @@ Theorem nominal_typed__typed:
     forwards: h;
     forwards: h0;
     forwards: h1; eauto.
+    injection H; intros; subst; eauto.
 (*    let a := fresh "A" in
     let b := fresh "B" in
     destruct (eq_ty_dec_bool t0_1 t4_1) eqn:a; 
@@ -316,6 +358,36 @@ Theorem nominal_typed__typed:
     try discriminate; 
     generalize dependent H6.*)
     true_AND_has_to_be_true.
+    poses' (true_eq_ty_dec_bool _ _ A);
+    poses' (true_eq_ty_dec_bool _ _ A0);
+    poses' (true_eq_ty_dec_bool _ _ B0); subst; eauto.
+
+    (* Case tletrcd*)
+    cbn in H. 
+    poses' (IHt (update i (rcd_cons_ty l (TRcd t t0 l)) ctx));
+    eauto.
+    destruct (check_inheritable t0) eqn: h1; eauto; try discriminate.
+
+    (* Case tfield *)
+    cbn in H. destruct t; subst; eauto; try discriminate.
+    destruct (rcd_field_ty l i) eqn: h1; eauto; try discriminate.
+    injection H; intros; eauto. subst T.
+    eauto.
+Qed.
+
+
+
+
+
+
+
+
+    
+
+    
+
+
+
     
     
 

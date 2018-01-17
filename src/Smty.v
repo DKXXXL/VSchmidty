@@ -85,6 +85,23 @@ Theorem eq_ty_dec_bool_false:
     intros t0 t1. eapply eq_ty_dec_nid.
 Qed.
 
+Theorem true_eq_ty_dec_bool:
+    forall t0 t1,
+        eq_ty_dec_bool t0 t1 = true ->
+        t0 = t1.
+    unfold eq_ty_dec_bool. intros.
+    destruct (eq_ty_dec t0 t1); subst; auto; try discriminate.
+Qed.
+
+Theorem false_eq_ty_dec_bool:
+    forall t0 t1,
+        eq_ty_dec_bool t0 t1 = false ->
+        t0 <> t1.
+    unfold eq_ty_dec_bool. intros.
+    destruct (eq_ty_dec t0 t1); subst; auto; try discriminate.
+Qed.
+
+
     
 
 
