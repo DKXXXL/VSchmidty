@@ -1,6 +1,7 @@
 Add LoadPath "src".
 Require Import Maps.
 Require Import Context.
+Require Import Coq.ZArith.Int.
 
 Import Context.Context.
 Require Import Coq.Lists.List.
@@ -154,6 +155,8 @@ Inductive value : tm -> Prop :=
                 value (trcons i t0 t1)
     | vInt : forall n,
                 value (tint n)
+    | vfun : forall i T wft body,
+                value (tfun i T wft body)
     | vtrue : value ttrue
     | vfalse : value tfalse
     | vleft : forall t T wft,
@@ -174,6 +177,90 @@ Inductive step : tm -> tm -> Prop :=
         forall i t0 t1 t1',
             value t0 ->
             step t1 t1' ->
-            step (trcons i t0 t1) (trcons i t0 t1') 
+            step (trcons i t0 t1) (trcons i t0 t1')
+    | stif0 :
+        forall t0 t0' t1 t2, 
+            step t0 t0' ->
+            step (tif t0 t1 t2) (tif t0' t1 t2)
+    | stif1 :
+        forall t1 t2,
+            step (tif ttrue t1 t2) t1
+    | stif2 :
+        forall t1 t2,
+            step (tif tfalse t1 t2) t2
+    | stsuc0 :
+        forall t0 t0',
+            step t0 t0' ->
+            step (tsuc t0) (tsuc t0')
+    | stsuc1 :
+        forall n0,
+            step (tsuc (tint n0)) (tint (n0 + 1))
+    | stdec0 :
+        forall t0 t0',
+            step t0 t0' ->
+            step (tdec t0) (tdec t0')
+    | stdec1 :
+        forall n0,
+            step (tdec (tint n0)) (tint (n0 - 1))
+    | stngt0 :
+        forall t0 t0' t1,
+            step t0 t0' ->
+            step (tngt t0 t1) (tngt t0' t1)
+    | stngt1 :
+        forall t0 t1 t1',
+            value t0 ->
+            step t1 t1' ->
+            step (tngt t0 t1) (tngt t0 t1')
+    | stngt2 :
+        forall n1 n2,
+            step (tngt (tint n1) (tint n2)) (if ltb n2 n1 then ttrue else tfalse)
+    | stnlt0 :
+        forall t0 t0' t1,
+            step t0 t0' ->
+            step (tnlt t0 t1) (tnlt t0' t1)
+    | stnlt1 :
+        forall t0 t1 t1',
+            value t0 ->
+            step t1 t1' ->
+            step (tnlt t0 t1) (tnlt t0 t1')
+    | stnlt2 :
+        forall n1 n2,
+            step (tnlt (tint n1) (tint n2)) (if ltb n1 n2 then ttrue else tfalse)
+    | stneq0 :
+        forall t0 t0' t1,
+            step t0 t0' ->
+            step (tneq t0 t1) (tneq t0' t1)
+    | stneq1 :
+        forall t0 t1 t1',
+            value t0 ->
+            step t1 t1' ->
+            step (tneq t0 t1) (tneq t0 t1')
+    | stneq2 :
+        forall n1 n2,
+            step (tneq (tint n1) (tint n2)) (if eqb n1 n2 then ttrue else tfalse)
+    | stceq0 :
+        forall t0 t0' t1,
+            step t0 t0' ->
+            step (tneq t0 t1) (tneq t0' t1)
+    | stceq1 :
+        forall t0 t1 t1',
+            value t0 ->
+            step t1 t1' ->
+            step (tneq t0 t1) (tneq t0 t1')
+    | stceq2 :
+        forall n1 n2,
+            step (tneq (tchr n1) (tchr n2)) (if eqb n1 n2 then ttrue else tfalse)
+    | stapp0 :
+        forall f f' x,
+            step f f' ->
+            step (tapp f x) (tapp f' x)
+    | stapp1:
+        forall f x x',
+            value f ->
+            step x x' ->
+            step (tapp f x) (tapp f x')
+    | stapp2 :
+        forall 
+
 
 End SSmtyP.
