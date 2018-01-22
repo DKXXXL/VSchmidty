@@ -1,6 +1,7 @@
 Add LoadPath "src".
 Require Import Maps.
 Require Import Context.
+Require Import Coq.ZArith.ZArith.
 Import Context.Context.
 Require Import Coq.Lists.List.
 
@@ -20,14 +21,19 @@ Inductive ty : Set :=
     (* There won't be any variable. *)
     | TRcons : id -> ty -> ty -> ty.
 
-Inductive only_rcd : ty -> Prop :=
+    Hint Constructors ty.
+
+Inductive only_rcd : ty -> Set :=
     | odNone : only_rcd TNone
     | odRcd : forall i T T',
         only_rcd T' ->
         only_rcd (TRcons i T T').
 
+    Hint Constructors only_rcd.
+
 Inductive wf_ty : ty -> Prop :=
     | wfNat : wf_ty TNat
+    | wfBool : wf_ty TBool
     | wfChr : wf_ty TChr
     | wfFun : forall i o, wf_ty i -> wf_ty o -> wf_ty (TFun i o)
     | wfSum : forall l r, wf_ty l -> wf_ty r -> wf_ty (TSum l r)
@@ -38,14 +44,15 @@ Inductive wf_ty : ty -> Prop :=
         only_rcd T' ->
         wf_ty (TRcons i T T').
 
-
+    Hint Constructors wf_ty.
+    
 
 Inductive tm : Set :=
     | tnone : tm 
     | trcons : id -> tm -> tm -> tm
     | tif: tm -> tm -> tm -> tm 
     | tvar : id -> tm
-    | tzero : tm
+    | tint : Z -> tm
     | tsuc : tm -> tm 
     | tdec : tm -> tm
     | tngt : tm -> tm -> tm 
@@ -59,6 +66,7 @@ Inductive tm : Set :=
     (*
         it's acutally letrec.
     *)
+    | tfix : id -> forall (T: ty),  wf_ty T -> tm -> tm
     | ttrue : tm
     | tfalse : tm 
     | tbeq : tm -> tm -> tm 
@@ -72,12 +80,13 @@ Inductive tm : Set :=
             type information is 
             lexical scoped
         *)
-    | tfield : forall (T: ty),  wf_ty T -> id -> tm 
+    | tfield : forall (T: ty), only_rcd T ->  wf_ty T -> id -> tm 
         (*
             TypeA.a :: TypeA -> Int
         *)
     | tseq : tm -> tm -> tm.
 
+    Hint Constructors tm.
 
 
 
@@ -102,5 +111,8 @@ Inductive subty  : ty -> ty -> Prop :=
             subty t0 t1 ->
             subty t1 t2 ->
             subty t0 t2.
+
+    Hint Constructors subty.
+    
 
 End SSmty.
