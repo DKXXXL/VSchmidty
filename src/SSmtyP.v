@@ -168,6 +168,13 @@ Inductive value : tm -> Prop :=
     | vfield : forall T ort wft id,
                 value (tfield T ort wft id).
 
+Definition subst : id -> tm -> tm.
+intros i org. remember org as org'.
+generalize dependent i. generalize dependent org'.
+induction org.
+Focus 2.
+
+
 Inductive step : tm -> tm -> Prop :=
     | strcons0:
         forall i t0 t0' t1,
