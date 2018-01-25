@@ -64,7 +64,7 @@ Inductive tm : Set :=
     | tapp : tm -> tm -> tm
     | tlet : id -> forall (T: ty),  wf_ty T -> tm -> tm -> tm
     (*
-        it's acutally letrec.
+        it's acutally normal let.
     *)
     | tfix : id -> forall (T: ty),  wf_ty T -> tm -> tm
     | ttrue : tm

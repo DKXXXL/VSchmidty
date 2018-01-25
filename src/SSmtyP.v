@@ -3,6 +3,10 @@ Require Import Maps.
 Require Import Context.
 Require Import Coq.ZArith.Int.
 
+Import Coq.ZArith.BinInt.
+
+
+
 Import Context.Context.
 Require Import Coq.Lists.List.
 Require Import SSmty.
@@ -275,6 +279,9 @@ Defined.
 
 
 Open Scope Int_scope.
+Check Nat.eqb.
+
+
 
 Inductive step : tm -> tm -> Prop :=
     | strcons0:
@@ -302,7 +309,7 @@ Inductive step : tm -> tm -> Prop :=
             step (tsuc t0) (tsuc t0')
     | stsuc1 :
         forall n0,
-            step (tsuc (tint n0)) (tint ((n0 + 1)))
+            step (tsuc (tint n0)) (tint (n0 + 1))
     | stdec0 :
         forall t0 t0',
             step t0 t0' ->
@@ -321,7 +328,7 @@ Inductive step : tm -> tm -> Prop :=
             step (tngt t0 t1) (tngt t0 t1')
     | stngt2 :
         forall n1 n2,
-            step (tngt (tint n1) (tint n2)) (if ltb n2 n1 then ttrue else tfalse)
+            step (tngt (tint n1) (tint n2)) (if Z.ltb n2 n1 then ttrue else tfalse)
     | stnlt0 :
         forall t0 t0' t1,
             step t0 t0' ->
@@ -333,7 +340,7 @@ Inductive step : tm -> tm -> Prop :=
             step (tnlt t0 t1) (tnlt t0 t1')
     | stnlt2 :
         forall n1 n2,
-            step (tnlt (tint n1) (tint n2)) (if ltb n1 n2 then ttrue else tfalse)
+            step (tnlt (tint n1) (tint n2)) (if Z.ltb n1 n2 then ttrue else tfalse)
     | stneq0 :
         forall t0 t0' t1,
             step t0 t0' ->
@@ -345,7 +352,7 @@ Inductive step : tm -> tm -> Prop :=
             step (tneq t0 t1) (tneq t0 t1')
     | stneq2 :
         forall n1 n2,
-            step (tneq (tint n1) (tint n2)) (if eqb n1 n2 then ttrue else tfalse)
+            step (tneq (tint n1) (tint n2)) (if Z.eqb n1 n2 then ttrue else tfalse)
     | stceq0 :
         forall t0 t0' t1,
             step t0 t0' ->
@@ -357,7 +364,7 @@ Inductive step : tm -> tm -> Prop :=
             step (tneq t0 t1) (tneq t0 t1')
     | stceq2 :
         forall n1 n2,
-            step (tneq (tchr n1) (tchr n2)) (if eqb n1 n2 then ttrue else tfalse)
+            step (tneq (tchr n1) (tchr n2)) (if Nat.eqb n1 n2 then ttrue else tfalse)
     | stapp0 :
         forall f f' x,
             step f f' ->
@@ -372,7 +379,66 @@ Inductive step : tm -> tm -> Prop :=
             value x ->
             step (tapp (tfun i T h body) x) (subst i x body)
     | stlet0 :
-        forall 
+        forall i T w bind bind' body,
+            step bind bind' ->
+            step (tlet i T w bind body) (tlet i T w bind' body)
+    | stlet1 :
+        forall i T w bind body,
+            value bind ->
+            step (tlet i T w bind body) (subst i bind body)
+    | stfix :
+        forall i T w fixbody,
+            step (tfix i T w fixbody) (subst i (tfix i T w fixbody) fixbody)
+    | stbeq0 :
+        forall a a' b,
+            step a a' ->
+            step (tbeq a b) (tbeq a' b)
+    | stbeq1 :
+        forall a b b',
+            value a ->
+            step b b' ->
+            step (tbeq a b) (tbeq a b')
+    | stleft :
+        forall l l' w R,
+            step l l' ->
+            step (tleft l w R) (tleft l' w R)
+    | stright :
+        forall w L r r',
+            step r r' ->
+            step (tright w L r) (tright w L r')
+    | stcase0 :
+        forall crit crit' lb rb,
+            step crit crit' ->
+            step (tcase crit lb rb) (tcase crit' lb rb)
+    | stcase1 :
+        forall crit lb lb' rb,
+            value crit ->
+            step lb lb' ->
+            step (tcase crit lb rb) (tcase crit lb' rb)
+    | stcase2 :
+        forall crit lb rb rb',
+            value crit ->
+            value lb ->
+            step rb rb' ->
+            step (tcase crit lb rb) (tcase crit lb rb')
+    | stfield0 :
+        forall T orcd w i j head tail,
+            value (trcons j head tail) ->
+            i <> j ->
+            step (tapp (tfield T orcd w i) (trcons j head tail)) (tapp (tfield T orcd w i) tail)  
+    | stfield1 :
+        forall T orcd w i head tail,
+            value (trcons i head tail) ->
+            step (tapp (tfield T orcd w i) (trcons i head tail)) head
+    | stseq0 :
+        forall A A' B,
+            step A A' ->
+            step (tseq A B) (tseq A' B)
+    | stseq1 :
+        forall A B,
+            value A ->
+            step (tseq A B) B.
 
+            
 
 End SSmtyP.
