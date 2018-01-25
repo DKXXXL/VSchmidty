@@ -169,6 +169,7 @@ Inductive value : tm -> Prop :=
     | vfield : forall T ort wft id,
                 value (tfield T ort wft id).
 
+(* subst (i:id) (rep: tm) (org: tm) : tm *)
 Definition subst : id -> tm -> tm -> tm.
 intros i rep org. remember org as org'.
 generalize dependent i. generalize dependent org'. 
@@ -273,6 +274,7 @@ induction org; intros;
 Defined.
 
 
+Open Scope Int_scope.
 
 Inductive step : tm -> tm -> Prop :=
     | strcons0:
@@ -300,7 +302,7 @@ Inductive step : tm -> tm -> Prop :=
             step (tsuc t0) (tsuc t0')
     | stsuc1 :
         forall n0,
-            step (tsuc (tint n0)) (tint (n0 + 1))
+            step (tsuc (tint n0)) (tint ((n0 + 1)))
     | stdec0 :
         forall t0 t0',
             step t0 t0' ->
@@ -368,7 +370,9 @@ Inductive step : tm -> tm -> Prop :=
     | stapp2 :
         forall i T h body x,
             value x ->
-            step (tfun i T h body) x ->
+            step (tapp (tfun i T h body) x) (subst i x body)
+    | stlet0 :
+        forall 
 
 
 End SSmtyP.
