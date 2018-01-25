@@ -162,6 +162,8 @@ Inductive value : tm -> Prop :=
                 value (tint n)
     | vfun : forall i T wft body,
                 value (tfun i T wft body)
+    | vChr : forall k,
+                value (tchr k)
     | vtrue : value ttrue
     | vfalse : value tfalse
     | vleft : forall t T wft,
@@ -439,6 +441,102 @@ Inductive step : tm -> tm -> Prop :=
             value A ->
             step (tseq A B) B.
 
-            
+Axiom wf_ty_indistinct:
+    forall T (t1 t2: wf_ty T),
+        t1 = t2.
+
+Axiom orcd_indistinct:
+    forall T (t1 t2: only_rcd T),
+        t1 = t2.
+
+
+
+Lemma value_no_step :
+    forall t,
+        value t ->
+        (forall t',
+            ~step t t'
+        ) .
+    intros t h.
+    induction h; intros; intro; subst; eauto;
+    match goal with
+    | h0 : step _ _ |- _ => inversion h0; subst; eauto;
+        try match goal with
+        | h0 : step ?X1 _, h1 : forall _ : tm, ~ step ?X1 _ |- _ => destruct (h1 _ h0)
+        end;
+    fail
+    | _ => idtac
+    end.
+Qed.
+
+Ltac tac_value_no_step :=
+    match goal with
+    | h0 : value ?X1, h1 : step ?X1 _ |- _ => 
+        destruct (value_no_step _ h0 _ h1)
+    end.
+
+Ltac forwards_ALL_det:=
+    match goal with
+    | h0 : forall _:_, _ -> ?X1 = _, 
+      h1 : step _ ?X1,
+      h2 : step _ _|- _ =>
+        poses' (h0 _ h2);
+        generalize dependent h0;
+        forwards_ALL_det; idtac 1
+    | _ => intros
+    end.
+
+
+Theorem step_deterministic:
+    forall t t1 t2,
+        step t t1 ->
+        step t t2 ->
+        t1 = t2.
+    intros t t1 t2 h1.
+    generalize dependent t2.
+    induction h1;intros; eauto;
+    match goal with
+    | h0 : step _ _ |- _ => 
+        inversion h0
+    end; subst; eauto;
+    try(forwards_ALL_det; subst; eauto);
+    try 
+    (poses' vNone;
+    poses' vInt;
+    poses' vtrue;
+    poses' vfalse;
+    try 
+    match goal with
+        | h0 : step (tchr ?k) _ |- _ => poses' (vChr k)
+    end;
+    try
+    match goal with
+        | h0 : step (tint ?k) _ |- _ => poses' (vInt k)
+    end;
+    try 
+    match goal with
+        | h0 : step (tfun ?i ?T ?wft ?body) _ |- _ => poses' (vfun i T wft body)
+    end;
+    try 
+    match goal with
+        | h0 : step (tfield ?T ?ort ?wft ?i) _ |- _ =>
+            poses' (vfield T ort wft i)
+    end;
+    try tac_value_no_step; fail).
+    (* tlet, wf_ty difference *)
+    erewrite (wf_ty_indistinct T w w1); eauto.
+    (* tfix, wf_ty difference *)
+    erewrite (wf_ty_indistinct T w w1); eauto.
+    (* tleft, wf_ty difference *)
+    erewrite (wf_ty_indistinct w R R1); eauto.
+    (* tright, wf_ty difference *)
+    erewrite (wf_ty_indistinct w L L1); eauto.
+    (* tfield , wf_ty orcd difference*)
+    erewrite (wf_ty_indistinct T w w1);
+    erewrite (orcd_indistinct T orcd orcd1); eauto.
+    
+    destruct (H0 eq_refl).
+    destruct (H9 eq_refl).
+Qed.
 
 End SSmtyP.
