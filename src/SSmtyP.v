@@ -6,6 +6,7 @@ Require Import Coq.ZArith.Int.
 Import Context.Context.
 Require Import Coq.Lists.List.
 Require Import SSmty.
+Require Import LibTactics.
 
 Import SSmty.SSmty.
 
@@ -168,11 +169,109 @@ Inductive value : tm -> Prop :=
     | vfield : forall T ort wft id,
                 value (tfield T ort wft id).
 
-Definition subst : id -> tm -> tm.
-intros i org. remember org as org'.
-generalize dependent i. generalize dependent org'.
-induction org.
-Focus 2.
+Definition subst : id -> tm -> tm -> tm.
+intros i rep org. remember org as org'.
+generalize dependent i. generalize dependent org'. 
+induction org; intros;
+    match goal with
+    | E : eq _ (?P ?X1 ?X2 ?X3 ?X4 ?X5 ?X6) |- _ =>
+        match goal with
+        | 
+        i: id, 
+        h0 : forall x:_, eq _ ?X1 -> _, 
+        h1 : forall x:_, eq _ ?X2 -> _, 
+        h2 : forall x:_, eq _ ?X3 -> _,
+        h3 : forall x:_, eq _ ?X4 -> _, 
+        h4 : forall x:_, eq _ ?X5 -> _,
+        h5 : forall x:_, eq _ ?X6 -> _  |- _=> 
+            try apply (P (h0 X1 eq_refl i) (h1 X2 eq_refl i) (h2 X3 eq_refl i) (h3 X4 eq_refl i) (h4 X5 eq_refl i) (h5 X6 eq_refl i)); idtac 1
+        | _ => idtac
+        end
+    | E : eq _ (?P ?X1 ?X2 ?X3 ?X4 ?X5) |- _ =>
+        match goal with
+        | 
+        i: id, 
+        h0 : forall x:_, eq _ ?X1 -> _, 
+        h1 : forall x:_, eq _ ?X2 -> _, 
+        h2 : forall x:_, eq _ ?X3 -> _,
+        h3 : forall x:_, eq _ ?X4 -> _, 
+        h4 : forall x:_, eq _ ?X5 -> _  |- _=> 
+            try apply (P (h0 X1 eq_refl i) (h1 X2 eq_refl i) (h2 X3 eq_refl i) (h3 X4 eq_refl i) (h4 X5 eq_refl i)); idtac 2
+        | _ => idtac
+        end
+    | E : eq _ (?P ?X1 ?X2 ?X3 ?X4) |- _ =>
+        match goal with
+        | 
+        i: id, 
+        h0 : forall x:_, eq _ ?X1 -> _, 
+        h1 : forall x:_, eq _ ?X2 -> _, 
+        h2 : forall x:_, eq _ ?X3 -> _,
+        h3 : forall x:_, eq _ ?X4 -> _|- _=> 
+            try apply (P (h0 X1 eq_refl i) (h1 X2 eq_refl i) (h2 X3 eq_refl i) (h3 X4 eq_refl i)); idtac 3
+        | _ => idtac
+        end
+    | E : eq _ (?P ?X1 ?X2 ?X3) |- _ =>
+        match goal with
+        | 
+        i: id, 
+        h0 : forall x:_, eq _ ?X1 -> _, 
+        h1 : forall x:_, eq _ ?X2 -> _, 
+        h2 : forall x:_, eq _ ?X3 -> _|- _=> 
+            try apply (P (h0 X1 eq_refl i) (h1 X2 eq_refl i) (h2 X3 eq_refl i)); idtac 4
+        | _ => idtac 
+        end
+    | E : eq _ (?P ?X1 ?X2) |- _ =>
+        match goal with
+        | 
+        i: id, 
+        h0 : forall x:_, eq _ ?X1 -> _, 
+        h1 : forall x:_, eq _ ?X2 -> _|- _=> 
+            try apply (P (h0 X1 eq_refl i) (h1 X2 eq_refl i)); idtac 5
+        | _ => idtac
+        end
+    | E : eq _ (?P ?X1) |- _ =>
+        match goal with
+        |
+        i: id, 
+        h0 : forall x:_, eq _ ?X1 -> _|- _=> 
+            try apply (P (h0 X1 eq_refl i)); idtac 6
+        | _ => idtac
+        end
+    | E: eq _ (?P) |- _ =>
+        apply org'
+    | _  => idtac
+    end.
+
+    (* trcons *)
+    apply (trcons i (IHorg1 _ eq_refl i0) (IHorg2 _ eq_refl i0)).
+    (* tvar *)
+    destruct (eq_id_dec i i0). 
+    apply rep.
+    apply org'.
+    (* tint *)
+    apply org'.
+    (* tchr *)
+    apply org'.
+    (* tfun *)
+    destruct (eq_id_dec i i0).
+    apply org'.
+    apply (tfun i T w (IHorg _ eq_refl i0)).
+    (* tlet *)
+    destruct (eq_id_dec i i0).
+    apply (tlet i T w (IHorg1 _ eq_refl i0) org2).
+    apply (tlet i T w (IHorg1 _ eq_refl i0) (IHorg2 _ eq_refl i0)).
+    (* tfix(app) *)
+    destruct (eq_id_dec i i0).
+    apply org'.
+    apply (tfix i T w (IHorg _ eq_refl i0)).
+    (* tleft *)
+    apply (tleft (IHorg _ eq_refl i) T w).
+    (* tright *)
+    apply (tright T w (IHorg _ eq_refl i)).
+    (* tfield *)
+    apply org'.
+Defined.
+
 
 
 Inductive step : tm -> tm -> Prop :=
@@ -267,7 +366,9 @@ Inductive step : tm -> tm -> Prop :=
             step x x' ->
             step (tapp f x) (tapp f x')
     | stapp2 :
-        forall 
+        forall i T h body x,
+            value x ->
+            step (tfun i T h body) x ->
 
 
 End SSmtyP.
