@@ -539,6 +539,68 @@ Theorem step_deterministic:
     destruct (H9 eq_refl).
 Qed.
 
+Theorem progress:
+    forall t T,
+        has_type empty t T ->
+        value t \/ (exists t', step t t').
+Abort.
+
+Theorem preservation:
+    forall t t' T,
+        has_type empty t T ->
+        step t t' ->
+        has_type empty t' T.
+Abort.
+
+Definition  stuck (t : tm) := 
+    ~ value t /\ ~ (exists t', step t t').
+
+Inductive multi {T : Type} (r : T -> T -> Prop) : T -> T -> Prop :=
+    | mo : forall x, multi r x x
+    | ms : forall x y z,
+                multi r x y ->
+                r y z ->
+                multi r x z.
+    
+Definition mstep := multi step.
+
+Theorem soundness :
+    forall t t' T,
+        has_type empty t T ->
+        mstep t t' ->
+        ~ stuck t'.
+
+Abort.
+
+Fixpoint check_type (ctx : Context) (t : tm) : option ty.
+Abort.
+
+Theorem check_type_sound:   
+    forall t T,
+        check_type empty t = Some T ->
+        has_type empty t T.
+Abort.
+Theorem check_type_complete:
+    forall t T,
+        has_type empty t T ->
+        check_type empty t = Some T.
+Abort.
+
+Fixpoint rsinterpreter (gas : nat) (i : tm) : tm.
+Abort.
+(* Doubt them. *)
+Theorem rsinterpreter_sound:
+    forall t t',
+        rsinterpreter 1 t = Some t' ->
+        step t t'.
+Abort.
+
+Theorem rsinterpreter_complete:
+    forall t t',
+        step t t' ->
+        rsinterpreter 1 t = Some t'.
+Abort.
+        
 
 
 End SSmtyP.
