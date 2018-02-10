@@ -90,7 +90,7 @@ Inductive tm : Set :=
 
 
 
-Inductive subty  : ty -> ty -> Prop :=
+Inductive subty  : ty -> ty -> Set :=
 | stfun : forall x x' y y',
             subty x x' ->
             subty y' y ->
@@ -100,12 +100,20 @@ Inductive subty  : ty -> ty -> Prop :=
             subty y y' ->
             subty (TSum x y) (TSum x' y')
 | strcdd : forall i p1 p2 q,
+            wf_ty q ->
+            only_rcd q ->
             subty p1 p2 ->
             subty (TRcons i p1 q) (TRcons i p2 q)
 | strcdw : forall i p q1 q2,
+            wf_ty q1 ->
+            only_rcd q1 ->
+            wf_ty q2 ->
+            only_rcd q2 ->
+            wf_ty p ->
             subty q1 q2 ->
             subty (TRcons i p q1) q2
 | st_refl : forall t,
+            wf_ty t ->
             subty t t
 | st_trans : forall t0 t1 t2,
             subty t0 t1 ->

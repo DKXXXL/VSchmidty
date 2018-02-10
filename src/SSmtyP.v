@@ -1,6 +1,7 @@
 Add LoadPath "src".
 Require Import Maps.
 Require Import Context.
+
 Require Import Coq.ZArith.Int.
 
 Import Coq.ZArith.BinInt.
@@ -25,6 +26,24 @@ Fixpoint rcd_cons_ty (rcd : list (id * ty)) (retty : ty) : ty :=
     | (_, h)::t => TFun h (rcd_cons_ty t retty)
     end. 
 *)
+Ltac general_val_ X u v :=
+    match v with
+      | 0 => X;(generalize dependent u)
+      | _ => general_val_ ltac:(X; generalize dependent u) v
+    end.
+
+Ltac glize :=
+    general_val_ idtac.
+
+    Ltac destructALL :=
+    repeat (
+        match goal with
+        | h0: _ \/ _ |- _ => destruct h0
+        | h0: _ /\ _ |- _ => destruct h0
+        | h0: exists _, _ |- _ => destruct h0
+        end
+    ).
+
 
 Definition rcd_field_ty (rcd: ty) (h : only_rcd rcd) (h' : wf_ty rcd) (field : id) : option ty.
 remember rcd as r.
@@ -57,6 +76,56 @@ Theorem rcd_field_ty_not_TNone:
     inversion H0.
 Qed.
 
+Theorem subty_wf:
+    forall a b,
+        subty a b ->
+        wf_ty a /\ wf_ty b.
+    
+    intros.
+    induction H; intros; subst;
+    try (destructALL; subst; eauto;fail).
+Qed.
+
+
+Lemma subty_rcd:
+    forall a b,
+        only_rcd b ->
+        subty a b ->
+        only_rcd a.
+    
+    intros a b h0 h2.
+    induction h2; subst; eauto; intros;
+    try match goal with
+    | h0 : only_rcd (_ _) |- _ => inversion h0; subst; eauto; fail
+    end.
+Qed.
+
+Lemma subty_none_a_a__none:
+    forall a,
+        subty TNone a ->
+        a = TNone.
+    
+        intros. 
+        remember TNone as a'. glize Heqa' 0.
+        induction H; subst; eauto; intros; try discriminate.
+        subst. poses' (IHsubty1 eq_refl); subst. eapply (IHsubty2). eauto.
+Qed.
+
+
+Lemma subty_rcd_not_none:
+    forall a b,
+        only_rcd b ->
+        b <> TNone ->
+        subty a b ->
+        a <> TNone.
+
+    intros; 
+    assert (only_rcd a).
+    eapply (subty_rcd a b H H1).
+    intro; subst.
+    poses' (subty_none_a_a__none _ H1).
+    destruct (H0 H3).
+Qed.
 
 
 Inductive has_type : Context (type := {x : ty | wf_ty x}) -> tm -> ty -> Prop :=
@@ -108,9 +177,10 @@ Inductive has_type : Context (type := {x : ty | wf_ty x}) -> tm -> ty -> Prop :=
 | ht_fun : forall ctx i T body TO (h: wf_ty T),
     has_type (update i (exist _ T h) ctx) body TO ->
     has_type ctx (tfun i T h body) (TFun T TO)
-| ht_app : forall ctx t0 t1 T0 T1,
+| ht_app : forall ctx t0 t1 T0' T0 T1,
     has_type ctx t0 (TFun T0 T1) ->
-    has_type ctx t1 T0 ->
+    has_type ctx t1 T0' ->
+    subty T0' T0 ->
     has_type ctx (tapp t0 t1) T1
 | ht_let : forall ctx i T bind body T' (h: wf_ty T),
     has_type ctx bind T ->
@@ -200,7 +270,7 @@ induction org; intros;
         h3 : forall x:_, eq _ ?X4 -> _, 
         h4 : forall x:_, eq _ ?X5 -> _,
         h5 : forall x:_, eq _ ?X6 -> _  |- _=> 
-            try apply (P (h0 X1 eq_refl i) (h1 X2 eq_refl i) (h2 X3 eq_refl i) (h3 X4 eq_refl i) (h4 X5 eq_refl i) (h5 X6 eq_refl i)); idtac 1
+            try apply (P (h0 X1 eq_refl i) (h1 X2 eq_refl i) (h2 X3 eq_refl i) (h3 X4 eq_refl i) (h4 X5 eq_refl i) (h5 X6 eq_refl i))
         | _ => idtac
         end
     | E : eq _ (?P ?X1 ?X2 ?X3 ?X4 ?X5) |- _ =>
@@ -598,14 +668,7 @@ Theorem step_deterministic:
     erewrite (wf_ty_indistinct T w w1); eauto.
 Qed.
 
-Ltac glize_aux x L :=
-    match L with
-    | 0 => generalize dependent x
-    | _ => generalize dependent x; glize_aux L
-    end.
 
-Ltac glize X :=
-    glize_aux X.
 
 Lemma ext_type_tnat:
     forall t,
@@ -718,14 +781,6 @@ Lemma ext_type_trcd:
 Qed.
 
 
-Ltac destructALL :=
-    repeat (
-        match goal with
-        | h0: _ \/ _ |- _ => destruct h0
-        | h0: _ /\ _ |- _ => destruct h0
-        | h0: exists _, _ |- _ => destruct h0
-        end
-    ).
 
 
 Theorem progress:
@@ -805,8 +860,11 @@ Theorem progress:
     try(eexists; eauto; fail).
         (* case: tapp: tfield*)
         inversion h1_1; subst; eauto. 
-        poses' (rcd_field_ty_not_TNone _ _ _ _ _ H3).
-        poses' (ext_type_trcd _ H0 _ h1_2 H1 x0 x1); destructALL; subst; eauto.
+        poses' (rcd_field_ty_not_TNone _ _ _ _ _ H4).
+        poses' (subty_rcd_not_none _ _ x0 H2 H).
+        destruct (subty_wf _ _ H).
+        poses' (subty_rcd _ _ x0 H).
+        poses' (ext_type_trcd _ H1 _ h1_2 H3 H8 H6); destructALL; subst; eauto.
         inversion h1_2; subst; eauto. destruct (eq_id_dec x x2); subst; eauto; try discriminate.
     (* case: tleft*)
     destructALL;
@@ -834,7 +892,59 @@ Theorem preservation:
         has_type empty t T ->
         step t t' ->
         has_type empty t' T.
-Abort.
+
+    intros t t' T h0.
+    remember empty as ctx0.
+    glize t' Heqctx0 0.
+    induction h0; intros; subst; eauto;
+    (* Eliminate value & step contradiction*)
+    (try 
+    (poses' vNone;
+    poses' vInt;
+    poses' vtrue;
+    poses' vfalse;
+    try 
+    match goal with
+        | h0 : step (tchr ?k) _ |- _ => poses' (vChr k)
+    end;
+    try
+    match goal with
+        | h0 : step (tint ?k) _ |- _ => poses' (vInt k)
+    end;
+    try 
+    match goal with
+        | h0 : step (tfun ?i ?T ?wft ?body) _ |- _ => poses' (vfun i T wft body)
+    end;
+    try 
+    match goal with
+        | h0 : step (tfield ?T ?ort ?wft ?i) _ |- _ =>
+            poses' (vfield T ort wft i)
+    end;
+    
+    try (match goal with
+        | h0 : ?x <> ?x |- _ => destruct (h0 eq_refl)
+        end
+    );
+    try 
+    match goal with
+        | h0 : step (tleft ?lt ?RT ?w1) _, h1: value ?lt |- _ =>
+            poses' (vleft lt RT w1 h1)
+    end;
+    try 
+    match goal with
+        | h0 : step (tright ?LT ?w0 ?rt) _, h1: value ?rt |- _ =>
+            poses' (vright LT w0 rt h1)
+    end;
+    try tac_value_no_step; 
+    fail));
+    (* remove trivial condition in hypothesis of assumption*)
+    repeat (
+        match goal with
+        | h0 : ?x = ?x -> _ |- _=> poses' (h0 eq_refl); clear h0
+        end 
+    ).
+    inversion H0; subst; eauto. forwards: H1; eauto. 
+
 
 Definition  stuck (t : tm) := 
     ~ value t /\ ~ (exists t', step t t').
