@@ -358,15 +358,15 @@ Inductive step : tm -> tm -> Prop :=
     | stceq0 :
         forall t0 t0' t1,
             step t0 t0' ->
-            step (tneq t0 t1) (tneq t0' t1)
+            step (tceq t0 t1) (tceq t0' t1)
     | stceq1 :
         forall t0 t1 t1',
             value t0 ->
             step t1 t1' ->
-            step (tneq t0 t1) (tneq t0 t1')
+            step (tceq t0 t1) (tceq t0 t1')
     | stceq2 :
         forall n1 n2,
-            step (tneq (tchr n1) (tchr n2)) (if Nat.eqb n1 n2 then ttrue else tfalse)
+            step (tceq (tchr n1) (tchr n2)) (if Nat.eqb n1 n2 then ttrue else tfalse)
     | stapp0 :
         forall f f' x,
             step f f' ->
@@ -400,6 +400,16 @@ Inductive step : tm -> tm -> Prop :=
             value a ->
             step b b' ->
             step (tbeq a b) (tbeq a b')
+    | stbeq2:
+        forall x,
+            value x ->
+            step (tbeq x x) ttrue
+    | stbeq3:
+        forall x y,
+            value x ->
+            value y ->
+            x <> y ->
+            step (tbeq x y) tfalse
     | stleft :
         forall l l' w R,
             step l l' ->
@@ -440,6 +450,8 @@ Inductive step : tm -> tm -> Prop :=
         forall A B,
             value A ->
             step (tseq A B) B.
+
+    Hint Constructors step.
 
 Axiom wf_ty_indistinct:
     forall T (t1 t2: wf_ty T),
@@ -522,11 +534,18 @@ Theorem step_deterministic:
         | h0 : step (tfield ?T ?ort ?wft ?i) _ |- _ =>
             poses' (vfield T ort wft i)
     end;
-    try tac_value_no_step; fail).
+    try tac_value_no_step; 
+    try (match goal with
+        | h0 : ?x <> ?x |- _ => destruct (h0 eq_refl)
+        end
+    );
+    fail).
     (* tlet, wf_ty difference *)
     erewrite (wf_ty_indistinct T w w1); eauto.
     (* tfix, wf_ty difference *)
     erewrite (wf_ty_indistinct T w w1); eauto.
+
+    (* tbeq, contradiction *)
     (* tleft, wf_ty difference *)
     erewrite (wf_ty_indistinct w R R1); eauto.
     (* tright, wf_ty difference *)
@@ -534,9 +553,6 @@ Theorem step_deterministic:
     (* tfield , wf_ty orcd difference*)
     erewrite (wf_ty_indistinct T w w1);
     erewrite (orcd_indistinct T orcd orcd1); eauto.
-    
-    destruct (H0 eq_refl).
-    destruct (H9 eq_refl).
 Qed.
 
 Ltac glize_aux x L :=
@@ -548,7 +564,7 @@ Ltac glize_aux x L :=
 Ltac glize X :=
     glize_aux X.
 
-Lemma ext_type_int:
+Lemma ext_type_tnat:
     forall t,
         value t ->
         has_type empty t TNat ->
@@ -576,6 +592,50 @@ Lemma ext_type_tchr:
     ).
 Qed.
 
+Lemma ext_type_tbool:
+    forall t,
+        value t ->
+        has_type empty t TBool ->
+        t = ttrue \/ t = tfalse.
+    
+    intros t h0;
+    induction h0; intros; subst; eauto; try discriminate;
+    try (match goal with
+            | H0 : has_type _ _ _ |- _ => inversion H0; subst; eauto
+        end
+    ).
+Qed.
+
+Lemma ext_type_tsum:
+    forall t,
+        value t ->
+        forall TL TR,
+        has_type empty t (TSum TL TR) ->
+        (exists w tl tr, t = tleft tl w tr) \/
+        (exists w tl tr, t = tright w tl tr).
+        
+        intros t h0;
+    induction h0; intros; subst; eauto; try discriminate;
+    try (match goal with
+            | H0 : has_type _ _ _ |- _ => inversion H0; subst; eauto
+        end
+    ).
+Qed.
+
+Lemma ext_type_tnone:
+    forall t,
+        value t ->
+        has_type empty t TNone ->
+        t = tnone.
+    intros t h0;
+    induction h0; intros; subst; eauto; try discriminate;
+    try (match goal with
+            | H0 : has_type _ _ _ |- _ => inversion H0; subst; eauto
+        end
+    ).
+Qed.
+
+
 Theorem progress:
     forall t T,
         has_type empty t T ->
@@ -585,7 +645,8 @@ Theorem progress:
     glize Heqctx0 0.
     induction h1; intros; subst; eauto; 
     try discriminate;
-    try(poses' vNone;
+    try(
+    poses' vNone;
     poses' vInt;
     poses' vtrue;
     poses' vfalse;
@@ -607,9 +668,10 @@ Theorem progress:
             poses' (vfield T ort wft i)
     end;
     left; eauto; fail
-    ).
-    Focus 3.
+    );
     try (
+    assert(ttrue <> tfalse); try (intro; discriminate);eauto;
+    assert(tfalse <> ttrue); try (intro; discriminate);eauto;
     right; 
     repeat (match goal with
             | h0: ?X = ?X -> _ |- _ => poses' (h0 eq_refl); clear h0
@@ -620,7 +682,20 @@ Theorem progress:
     repeat (match goal with
             | h0 : exists _ : _, _ |- _ => destruct h0
             end);
-    eexists; eauto). eauto.
+        try 
+            (repeat (match goal with
+                | h0 : value ?X, h1: has_type empty ?X TNat |- _=> 
+                    destruct (ext_type_tnat _ h0 h1); subst; eauto; generalize dependent h0; generalize dependent h1
+                | h0 : value ?X, h1: has_type empty ?X TChr |- _=> 
+                    destruct (ext_type_tchr _ h0 h1); subst; eauto  ; generalize dependent h0; generalize dependent h1             
+                | h0 : value ?X, h1: has_type empty ?X TBool |- _=> 
+                    destruct (ext_type_tbool _ h0 h1); subst; eauto; generalize dependent h0; generalize dependent h1
+                | h0 : value ?X, h1: has_type empty ?X TSum |- _=> 
+                    destruct (ext_type_tsum _ h0 h1); subst; eauto; generalize dependent h0; generalize dependent h1
+                | h0 : value ?X, h1: has_type empty ?X TNone |- _=> 
+                    destruct (ext_type_tnone _ h0 h1); subst; eauto; generalize dependent h0; generalize dependent h1
+            end));intros;
+    eexists; eauto). eapply eauto.
 
 Theorem preservation:
     forall t t' T,
