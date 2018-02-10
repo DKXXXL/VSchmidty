@@ -203,7 +203,7 @@ induction org; intros;
         h2 : forall x:_, eq _ ?X3 -> _,
         h3 : forall x:_, eq _ ?X4 -> _, 
         h4 : forall x:_, eq _ ?X5 -> _  |- _=> 
-            try apply (P (h0 X1 eq_refl i) (h1 X2 eq_refl i) (h2 X3 eq_refl i) (h3 X4 eq_refl i) (h4 X5 eq_refl i)); idtac 2
+            try apply (P (h0 X1 eq_refl i) (h1 X2 eq_refl i) (h2 X3 eq_refl i) (h3 X4 eq_refl i) (h4 X5 eq_refl i))
         | _ => idtac
         end
     | E : eq _ (?P ?X1 ?X2 ?X3 ?X4) |- _ =>
@@ -214,7 +214,7 @@ induction org; intros;
         h1 : forall x:_, eq _ ?X2 -> _, 
         h2 : forall x:_, eq _ ?X3 -> _,
         h3 : forall x:_, eq _ ?X4 -> _|- _=> 
-            try apply (P (h0 X1 eq_refl i) (h1 X2 eq_refl i) (h2 X3 eq_refl i) (h3 X4 eq_refl i)); idtac 3
+            try apply (P (h0 X1 eq_refl i) (h1 X2 eq_refl i) (h2 X3 eq_refl i) (h3 X4 eq_refl i))
         | _ => idtac
         end
     | E : eq _ (?P ?X1 ?X2 ?X3) |- _ =>
@@ -224,7 +224,7 @@ induction org; intros;
         h0 : forall x:_, eq _ ?X1 -> _, 
         h1 : forall x:_, eq _ ?X2 -> _, 
         h2 : forall x:_, eq _ ?X3 -> _|- _=> 
-            try apply (P (h0 X1 eq_refl i) (h1 X2 eq_refl i) (h2 X3 eq_refl i)); idtac 4
+            try apply (P (h0 X1 eq_refl i) (h1 X2 eq_refl i) (h2 X3 eq_refl i))
         | _ => idtac 
         end
     | E : eq _ (?P ?X1 ?X2) |- _ =>
@@ -233,7 +233,7 @@ induction org; intros;
         i: id, 
         h0 : forall x:_, eq _ ?X1 -> _, 
         h1 : forall x:_, eq _ ?X2 -> _|- _=> 
-            try apply (P (h0 X1 eq_refl i) (h1 X2 eq_refl i)); idtac 5
+            try apply (P (h0 X1 eq_refl i) (h1 X2 eq_refl i))
         | _ => idtac
         end
     | E : eq _ (?P ?X1) |- _ =>
@@ -241,7 +241,7 @@ induction org; intros;
         |
         i: id, 
         h0 : forall x:_, eq _ ?X1 -> _|- _=> 
-            try apply (P (h0 X1 eq_refl i)); idtac 6
+            try apply (P (h0 X1 eq_refl i))
         | _ => idtac
         end
     | E: eq _ (?P) |- _ =>
@@ -281,7 +281,7 @@ Defined.
 
 
 Open Scope Int_scope.
-Check Nat.eqb.
+(*Check Nat.eqb.*)
 
 
 
@@ -482,7 +482,7 @@ Ltac forwards_ALL_det:=
       h2 : step _ _|- _ =>
         poses' (h0 _ h2);
         generalize dependent h0;
-        forwards_ALL_det; idtac 1
+        forwards_ALL_det
     | _ => intros
     end.
 
@@ -539,11 +539,88 @@ Theorem step_deterministic:
     destruct (H9 eq_refl).
 Qed.
 
+Ltac glize_aux x L :=
+    match L with
+    | 0 => generalize dependent x
+    | _ => generalize dependent x; glize_aux L
+    end.
+
+Ltac glize X :=
+    glize_aux X.
+
+Lemma ext_type_int:
+    forall t,
+        value t ->
+        has_type empty t TNat ->
+        exists n, t = tint n.
+
+    intros t h0;
+    induction h0; intros; subst; eauto; try discriminate;
+    try (match goal with
+            | H0 : has_type _ _ _ |- _ => inversion H0; subst; eauto
+        end
+    ).
+Qed.
+    
+Lemma ext_type_tchr:
+    forall t,
+        value t ->
+        has_type empty t TChr ->
+        exists n, t = tchr n.
+
+        intros t h0;
+    induction h0; intros; subst; eauto; try discriminate;
+    try (match goal with
+            | H0 : has_type _ _ _ |- _ => inversion H0; subst; eauto
+        end
+    ).
+Qed.
+
 Theorem progress:
     forall t T,
         has_type empty t T ->
         value t \/ (exists t', step t t').
-Abort.
+    intros t T h1.
+    remember empty as ctx0.
+    glize Heqctx0 0.
+    induction h1; intros; subst; eauto; 
+    try discriminate;
+    try(poses' vNone;
+    poses' vInt;
+    poses' vtrue;
+    poses' vfalse;
+    try 
+    match goal with
+        | |- value (tchr ?k) \/ _ => poses' (vChr k)
+    end;
+    try
+    match goal with
+        | |- value (tint ?k) \/ _ => poses' (vInt k)
+    end;
+    try 
+    match goal with
+        | |- value (tfun ?i ?T ?wft ?body) \/ _ => poses' (vfun i T wft body)
+    end;
+    try 
+    match goal with
+        | |- value (tfield ?T ?ort ?wft ?i) \/ _ =>
+            poses' (vfield T ort wft i)
+    end;
+    left; eauto; fail
+    ).
+    Focus 3.
+    try (
+    right; 
+    repeat (match goal with
+            | h0: ?X = ?X -> _ |- _ => poses' (h0 eq_refl); clear h0
+            end);
+    repeat (match goal with
+            | h0 : _ \/ _ |- _ => destruct h0
+            end);
+    repeat (match goal with
+            | h0 : exists _ : _, _ |- _ => destruct h0
+            end);
+    eexists; eauto). eauto.
 
 Theorem preservation:
     forall t t' T,
