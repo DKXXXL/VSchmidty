@@ -113,7 +113,7 @@ Inductive has_type : Context (type := {x : ty | wf_ty x}) -> tm -> ty -> Prop :=
     has_type ctx t1 T0 ->
     has_type ctx (tapp t0 t1) T1
 | ht_let : forall ctx i T bind body T' (h: wf_ty T),
-    has_type (update i (exist _ T h) ctx) bind T ->
+    has_type ctx bind T ->
     has_type (update i (exist _ T h) ctx) body T' ->
     has_type ctx (tlet i T h bind body) T'
 | ht_fix : forall ctx i body T (h:wf_ty T),
@@ -443,15 +443,19 @@ Inductive step : tm -> tm -> Prop :=
             step rb rb' ->
             step (tcase crit lb rb) (tcase crit lb rb')
     | stcase3 :
-        forall lt LT RT w0 w1 i0 i1 body0 body1,
+        forall lt RT w1 lb rb,
             value lt ->
-            step (tcase (tleft lt RT w1) (tfun i0 LT w0 body0) (tfun i1 RT w1 body1))
-                    (tapp (tfun i0 LT w0 body0) lt)
+            value lb ->
+            value rb ->
+            step (tcase (tleft lt RT w1) lb rb)
+                    (tapp lb lt)
     | stcase4 :
-        forall rt LT RT w0 w1 i0 i1 body0 body1,
+        forall rt LT w0 lb rb,
             value rt ->
-            step (tcase (tright LT w0 rt) (tfun i0 LT w0 body0) (tfun i1 RT w1 body1))
-                    (tapp (tfun i1 RT w1 body1) rt)
+            value lb ->
+            value rb ->
+            step (tcase (tright LT w0 rt) lb rb)
+                    (tapp rb rt)
     | stfield0 :
         forall T orcd w i j head tail,
             value (trcons j head tail) ->
@@ -583,12 +587,12 @@ Theorem step_deterministic:
     (* tright, wf_ty difference *)
     erewrite (wf_ty_indistinct w L L1); eauto.
 
-
+(*
     (* tcase , wf_ty orcd difference*)
     erewrite (wf_ty_indistinct LT w0 w5); eauto.
 
     (* tcase , wf_ty orcd difference*)
-    erewrite (wf_ty_indistinct RT w1 w5); eauto.
+    erewrite (wf_ty_indistinct RT w1 w5); eauto.*)
     (*tfield, wf_ty orcd difference*)
     erewrite (orcd_indistinct T orcd orcd1); eauto.
     erewrite (wf_ty_indistinct T w w1); eauto.
@@ -798,16 +802,32 @@ Theorem progress:
                  | h0 : value ?X, h1: has_type empty ?X (TFun _ _) |- _=> 
                     destruct (ext_type_tfun _ h0 _ _ h1); destructALL; subst; eauto; generalize dependent h0; generalize dependent h1
                   end));intros;
-    eexists; eauto.
+    try(eexists; eauto; fail).
         (* case: tapp: tfield*)
-    inversion h1_1; subst; eauto. 
-    poses' (rcd_field_ty_not_TNone _ _ _ _ _ H3).
-    poses' (ext_type_trcd _ H0 _ h1_2 H1 x0 x1); destructALL; subst; eauto.
-    inversion h1_2; subst; eauto. destruct (eq_id_dec x x2); subst; eauto; try discriminate. eapply stfield1.
+        inversion h1_1; subst; eauto. 
+        poses' (rcd_field_ty_not_TNone _ _ _ _ _ H3).
+        poses' (ext_type_trcd _ H0 _ h1_2 H1 x0 x1); destructALL; subst; eauto.
+        inversion h1_2; subst; eauto. destruct (eq_id_dec x x2); subst; eauto; try discriminate.
+    (* case: tleft*)
+    destructALL;
+    match goal with
+    | h0 : value ?x |- (value (tleft ?x _ _)) \/ _ => left; eauto
+    | |- _ => right; eauto
+    end.
 
-    inversion h1_1; subst; eauto. 
-    destruct (ext_type_tfun _ H1 h1_1); destructALL; subst; eauto.
-    eapply eauto.
+    (* case : tright*)
+    destructALL;
+    match goal with
+    | h0 : value ?x |- (value (tright _ _ ?x)) \/ _ => left; eauto
+    | |- _ => right; eauto
+    end.
+
+    (* case : tcase*)
+    right; destructALL; eauto.
+    poses' (ext_type_tsum _ H _ _ h1_1); destructALL; subst; eauto.
+    inversion H; subst; eauto.
+    inversion H; subst; eauto.
+Qed.
 
 Theorem preservation:
     forall t t' T,
