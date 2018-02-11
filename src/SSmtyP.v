@@ -899,24 +899,34 @@ Theorem has_type_unique:
     glize T1 0.
     induction h0; intros; subst; eauto;
     try match goal with
-    | h0 : has_type _ _ _ |- _ => inversion h0; subst; eauto; fail
     | h0 : has_type _ (_ _) _ |- _ => 
         repeat (
             match goal with
             | h2 : has_type _ (_ _) _ |- _ => inversion h2; try glize h2 0
             end
-        ); subst; intros; eauto;
+        ); intros; subst; eauto;
         try(repeat (
             match goal with
             | h1 : forall _:_, _ |- _=> forwards: h1; eauto; try glize h1 0
-            end);intros ; subst; eauto;fail)
+            end);
+        intros ; subst; eauto;fail)
+    | h0 : has_type _ _ _ |- _ => inversion h0; subst; eauto; fail
     end.
     (* case : tvar*)
     rewrite H in H3. inversion H3; subst; eauto.
     (* case tfun*)
     rewrite (wf_ty_indistinct _ h2 h) in H5. erewrite IHh0; eauto.
-    
-
+    (* case tapp*)
+    forwards:IHh0_1. apply H3. inversion H1; subst; eauto.
+    (* case tlet*)
+    eapply IHh0_2; eauto. rewrite (wf_ty_indistinct _ h h1). eauto.
+    (* case tcase*)
+    poses' (IHh0_2 _ H6). inversion H0; subst; eauto.
+    (* case tfield*)
+    erewrite (wf_ty_indistinct _ h1 h5) in H.
+    erewrite (orcd_indistinct _ h0 h4) in H.
+    rewrite H in H6. inversion H6; subst; eauto.
+Qed.
 
 Theorem has_type_on_closed:
     forall ctx t T,
