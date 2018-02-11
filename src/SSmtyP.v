@@ -216,6 +216,8 @@ Inductive has_type : Context (type := {x : ty | wf_ty x}) -> tm -> ty -> Prop :=
     has_type ctx t1 T1 ->
     has_type ctx (tseq t0 t1) T1.
 
+Hint Constructors has_type.
+
 Theorem has_type_well_formed:
     forall ctx t T,
         has_type ctx t T ->
@@ -887,6 +889,62 @@ Theorem progress:
     inversion H; subst; eauto.
 Qed.
 
+Theorem has_type_unique:
+    forall ctx t T0 T1,
+        has_type ctx t T0 ->
+        has_type ctx t T1 ->
+        T0 = T1.
+
+    intros ctx t T0 T1 h0.
+    glize T1 0.
+    induction h0; intros; subst; eauto;
+    try match goal with
+    | h0 : has_type _ _ _ |- _ => inversion h0; subst; eauto; fail
+    | h0 : has_type _ (_ _) _ |- _ => 
+        repeat (
+            match goal with
+            | h2 : has_type _ (_ _) _ |- _ => inversion h2; try glize h2 0
+            end
+        ); subst; intros; eauto;
+        try(repeat (
+            match goal with
+            | h1 : forall _:_, _ |- _=> forwards: h1; eauto; try glize h1 0
+            end);intros ; subst; eauto;fail)
+    end.
+    (* case : tvar*)
+    rewrite H in H3. inversion H3; subst; eauto.
+    (* case tfun*)
+    rewrite (wf_ty_indistinct _ h2 h) in H5. erewrite IHh0; eauto.
+    
+
+
+Theorem has_type_on_closed:
+    forall ctx t T,
+        has_type empty t T ->
+        has_type ctx t T.
+
+    
+
+Lemma preservation_on_subst0:
+    forall i t T0 w body T1,
+        has_type empty t T0 ->
+        has_type empty (tfun i T0 w body) (TFun T0 T1) ->
+        has_type empty (subst i t body) T1.
+
+        intros i t T0 w body.
+        glize i t T0 0.
+        induction body; intros; subst; eauto.
+        inversion H0; subst; eauto.
+
+        (*remember empty as ctx0.
+        remember (tfun i T0 w body) as f.
+        remember (TFun T0 T1) as Tf.
+        glize i t T0 body Heqctx0 T1 0.
+        induction h1; intros; subst; eauto; try discriminate.
+        *)
+
+
+
 Theorem preservation:
     forall t t' T,
         has_type empty t T ->
@@ -942,8 +1000,20 @@ Theorem preservation:
         match goal with
         | h0 : ?x = ?x -> _ |- _=> poses' (h0 eq_refl); clear h0
         end 
-    ).
-    inversion H0; subst; eauto. forwards: H1; eauto. 
+    );
+    try match goal with
+    | h0 : step (_ _) _ |- _ =>
+        inversion h0; subst; eauto;
+            try (match goal with
+            | h1: step ?t0 ?t1, h2: forall _:_, step ?t0 _ -> _ |- _ =>
+                forwards: h2; eauto
+            end);
+            (* ngt, nlt introduce calculation, destruct them*)
+            try (match goal with
+            | H: step _ (if ?crit then _ else _) |- _ => destruct crit; subst; eauto; fail
+            end); fail
+    end.
+    Focus 4.
 
 
 Definition  stuck (t : tm) := 
