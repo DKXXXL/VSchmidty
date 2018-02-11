@@ -932,6 +932,9 @@ Theorem has_type_on_closed:
     forall ctx t T,
         has_type empty t T ->
         has_type ctx t T.
+    
+    intros ctx. induction ctx; eauto.
+    intros.
 
     
 
