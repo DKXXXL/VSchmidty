@@ -1070,25 +1070,54 @@ Definition relative_ctx_eq (t : tm) (ctx0 ctx1: Context) :=
 
 Hint Unfold relative_ctx_eq.
 
-Lemma ctx_change:
+
+
+Theorem ctx_change:
     forall ctx0 ctx1 t T,
     has_type ctx0 t T ->
     relative_ctx_eq t ctx0 ctx1 ->
     has_type ctx1 t T.
 
-    intros ctx0 ctx1 t T h0. unfold relative_ctx_eq.
+    intros ctx0 ctx1 t T h0. glize ctx1 0.
+    unfold relative_ctx_eq.
     induction h0; intros; subst; eauto;
+    try(
     repeat (
         match goal with
-        | h0 : _ -> has_type _ _ _ |- _ => forwards: h0; glize h0 0
+        | h1: forall _: Context, _ |- _ => poses' (h1 ctx1); glize h1 0
         end
     );
     intros;
-    eauto.
+    repeat (
+        match goal with
+        | h0 :  _ -> has_type _ _ _ |- _ => forwards: h0; glize h0 0
+        end
+    );
+    intros;
+    eauto;
+    fail).
 
-    (* case tvar *)
-    
-intros i k t ctx T h0
+    (* case tvar*)
+    poses' (H0 i). forwards: H1; eauto.
+    pattern (byContext ctx i) in H.
+    rewrite H2 in H. eauto.
+
+    (* case tfun*)
+    eapply ht_fun.
+    eapply IHh0. 
+    intros. cbn. destruct (eq_id_dec i0 i); subst; eauto.
+
+    (* case tlet*)
+    eapply ht_let. eapply IHh0_1.
+    intros. eauto.
+    eapply IHh0_2. intros; eauto.
+    cbn. destruct (eq_id_dec i0 i); subst; eauto.
+
+    (* case tfix *)
+    eapply ht_fix. eapply IHh0. intros; cbn.
+    destruct (eq_id_dec i0 i); subst; eauto.
+Qed.
+
     
 
 Lemma preservation_on_subst0:
