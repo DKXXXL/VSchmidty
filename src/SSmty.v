@@ -85,6 +85,11 @@ Inductive tm : Set :=
             TypeA.a :: TypeA -> Int
         *)
     | tseq : tm -> tm -> tm.
+        (* 
+            Maybe one day I will add side effect.
+            Then it is useful.
+            But it is definitely useful in FFI.
+        *)
 
     Hint Constructors tm.
 

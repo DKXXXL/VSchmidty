@@ -889,6 +889,7 @@ Theorem progress:
     inversion H; subst; eauto.
 Qed.
 
+
 Theorem has_type_unique:
     forall ctx t T0 T1,
         has_type ctx t T0 ->
@@ -928,14 +929,166 @@ Theorem has_type_unique:
     rewrite H in H6. inversion H6; subst; eauto.
 Qed.
 
-Theorem has_type_on_closed:
-    forall ctx t T,
-        has_type empty t T ->
-        has_type ctx t T.
-    
-    intros ctx. induction ctx; eauto.
-    intros.
+Inductive free_occur_in : id -> tm -> Prop :=
+    | fo_rcons0 : forall i j t0 t1,
+                free_occur_in i t0 ->
+                free_occur_in i (trcons j t0 t1)
+    | fo_rcons1 : forall i j t0 t1,
+                free_occur_in i t1 ->
+                free_occur_in i (trcons j t0 t1)
+    | fo_if0 : forall i t0 t1 t2,
+                free_occur_in i t0 ->
+                free_occur_in i (tif t0 t1 t2)
+    | fo_if1 : forall i t0 t1 t2,
+                free_occur_in i t1 ->
+                free_occur_in i (tif t0 t1 t2)
+    | fo_if2 : forall i t0 t1 t2,
+                free_occur_in i t2 ->
+                free_occur_in i (tif t0 t1 t2)
+    | fo_var : forall i,
+                free_occur_in i (tvar i)
+    | fo_suc : forall i t0,
+                free_occur_in i t0 ->
+                free_occur_in i (tsuc t0)
+    | fo_dec : forall i t0,
+                free_occur_in i t0 ->
+                free_occur_in i (tdec t0)
+    | fo_ngt0 : forall i t0 t1,
+                free_occur_in i t0 ->
+                free_occur_in i (tngt t0 t1)
+    | fo_ngt1 : forall i t0 t1,
+                free_occur_in i t1 ->
+                free_occur_in i (tngt t0 t1)
+    | fo_nlt0 : forall i t0 t1,
+                free_occur_in i t0 ->
+                free_occur_in i (tnlt t0 t1)
+    | fo_nlt1 : forall i t0 t1,
+                free_occur_in i t1 ->
+                free_occur_in i (tnlt t0 t1)
+    | fo_neq0 : forall i t0 t1,
+                free_occur_in i t0 ->
+                free_occur_in i (tneq t0 t1)
+    | fo_neq1 : forall i t0 t1,
+                free_occur_in i t1 ->
+                free_occur_in i (tneq t0 t1)
+    | fo_ceq0 : forall i t0 t1,
+                free_occur_in i t0 ->
+                free_occur_in i (tceq t0 t1)
+    | fo_ceq1 : forall i t0 t1,
+                free_occur_in i t1 ->
+                free_occur_in i (tceq t0 t1)
+    | fo_fun : forall i j T h body,
+                i <> j ->
+                free_occur_in i body ->
+                free_occur_in i (tfun j T h body)
+    | fo_app0 : forall i t0 t1,
+                free_occur_in i t0 ->
+                free_occur_in i (tapp t0 t1)
+    | fo_app1 : forall i t0 t1,
+                free_occur_in i t1 ->
+                free_occur_in i (tapp t0 t1)
+    | fo_let0 : forall i j T h t0 t1,
+                free_occur_in i t0 ->
+                free_occur_in i (tlet j T h t0 t1)
+    | fo_let1 : forall i j T h t0 t1,
+                i <> j ->
+                free_occur_in i t1 ->
+                free_occur_in i (tlet j T h t0 t1)
+    | fo_fix : forall i j T h t0,
+                i <> j ->
+                free_occur_in i t0 ->
+                free_occur_in i (tfix j T h t0)
+    | fo_beq0 : forall i t0 t1,
+                free_occur_in i t0 ->
+                free_occur_in i (tbeq t0 t1)
+    | fo_beq1 : forall i t0 t1,
+                free_occur_in i t1 ->
+                free_occur_in i (tbeq t0 t1)
+    | fo_left : forall i t0 T h,
+                free_occur_in i t0 ->
+                free_occur_in i (tleft t0 T h)
+    | fo_right: forall i t0 T h,
+                free_occur_in i t0 ->
+                free_occur_in i (tright T h t0)
+    | fo_case0: forall i t0 t1 t2,
+                free_occur_in i t0 ->
+                free_occur_in i (tcase t0 t1 t2)
+    | fo_case1: forall i t0 t1 t2,
+                free_occur_in i t1 ->
+                free_occur_in i (tcase t0 t1 t2)
+    | fo_case2: forall i t0 t1 t2,
+                free_occur_in i t2 ->
+                free_occur_in i (tcase t0 t1 t2)
+    | fo_seq0 : forall i t0 t1,
+                free_occur_in i t0 ->
+                free_occur_in i (tseq t0 t1)
+    | fo_seq1 : forall i t0 t1,
+                free_occur_in i t1 ->
+                free_occur_in i (tseq t0 t1).
 
+Hint Constructors free_occur_in.
+        
+(*Lemma closed_no_free_occur:
+    forall t T,
+        has_type empty t T ->
+        forall i, ~ free_occur_in i t.
+    intros t T h0.
+    remember empty as ctx0.
+    glize Heqctx0 0.
+    induction h0; intros; subst; intro; 
+    repeat (
+        match goal with
+        | h : ?x = ?x -> _ |- _ => poses' (h eq_refl); clear h
+        end
+    );
+    try (
+    repeat (
+        match goal with
+        | h : forall _ : id, _ |- _ => poses' (h i); glize h 0
+        end); 
+    intros;
+    try match goal with
+    | h1 : free_occur_in _ _ |- _ => inversion h1; subst; eauto; fail
+    | h1 : free_occur_in _ _ |- _ => inversion h1; subst;
+        match goal with
+        | h2 : free_occur_in ?ii ?t, h3: forall _:id, ~free_occur_in _ ?t |- _ => 
+            poses' (h3 ii); eauto
+        end; fail 
+    end; 
+    fail
+    ).
+
+    (* case tvar *)
+    cbn in H. inversion H.
+    (* case tfun *)
+    inversion H; subst; eauto.  
+    Abort.
+    *)
+Definition relative_ctx_eq (t : tm) (ctx0 ctx1: Context) :=
+    (forall i, free_occur_in i t ->  
+                byContext (type := {x : ty | wf_ty x}) ctx0 i = byContext ctx1 i).
+
+Hint Unfold relative_ctx_eq.
+
+Lemma ctx_change:
+    forall ctx0 ctx1 t T,
+    has_type ctx0 t T ->
+    relative_ctx_eq t ctx0 ctx1 ->
+    has_type ctx1 t T.
+
+    intros ctx0 ctx1 t T h0. unfold relative_ctx_eq.
+    induction h0; intros; subst; eauto;
+    repeat (
+        match goal with
+        | h0 : _ -> has_type _ _ _ |- _ => forwards: h0; glize h0 0
+        end
+    );
+    intros;
+    eauto.
+
+    (* case tvar *)
+    
+intros i k t ctx T h0
     
 
 Lemma preservation_on_subst0:
