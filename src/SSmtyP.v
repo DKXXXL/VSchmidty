@@ -1233,21 +1233,6 @@ Theorem typed_relative_closed:
     intros. destruct (H _ H0).
 Qed.
 
-    intros t T h0.
-    remember empty as ctx0.
-    glize Heqctx0 0.
-    elim h0; unfold relative_ctx_eq; intros; subst;  intros;
-    try (match goal with
-        | h : free_occur_in _ _ |- _ => inversion h; eauto
-        end; fail );
-    repeat (match goal with
-    | h : ?x = ?x -> _ |- _ => poses' (h eq_refl); clear h
-    end).
-
-    (* case tvar *)
-    inversion H.
-    (* case tfun *)
-    inversion H1; subst; eauto. 
 
 
 
