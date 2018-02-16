@@ -929,7 +929,7 @@ Theorem has_type_unique:
     rewrite H in H6. inversion H6; subst; eauto.
 Qed.
 
-Inductive free_occur_in : id -> tm -> Set :=
+Inductive free_occur_in : id -> tm -> Prop :=
     | fo_rcons0 : forall i j t0 t1,
                 free_occur_in i t0 ->
                 free_occur_in i (trcons j t0 t1)
@@ -1126,15 +1126,6 @@ Lemma ctx_typed_fv_exists:
     intros ctx t T h0.
     induction h0 ; subst; eauto; intros;
     try (
-        (* Eliminate cases where free_occur doesn't satisfys *)
-        eexists; intros;
-        match goal with
-        | h : free_occur_in _ _ |- _ => inversion h; subst; eauto
-        end;
-        fail
-
-    );
-    try (
         match goal with
         | h: free_occur_in _ _ |- _ =>
             inversion h; subst; eauto; fail
@@ -1153,6 +1144,7 @@ Lemma ctx_typed_fv_exists:
     end;
     intros; eauto
     ).
+    
 
     (* case tfun *)
     inversion H; subst; eauto.
@@ -1167,8 +1159,6 @@ Lemma ctx_typed_fv_exists:
     inversion H; subst; eauto. destruct (IHh0 i0 H5); subst; eauto.
     cbn in H0; subst; eauto. destruct (eq_id_dec i0 i); subst; eauto; try contradiction.
 
-    Unshelve.
-    inversion H.
 Qed.
 
 
@@ -1200,13 +1190,48 @@ Theorem typed_closed :
     inversion H.
     (* case tfun*)
     inversion H; subst; eauto.
+    destruct 
+    (ctx_typed_fv_exists 
+    (update i (exist wf_ty T h) empty) 
+    body TO h0 i0 H5).
+    cbn in H0. destruct (eq_id_dec i0 i); subst; eauto; try contradiction.
+    inversion H0.
+
+    (* case tlet *)
+    inversion H; subst; eauto.
+    destruct (H0 _ H3).
+    destruct 
+    (ctx_typed_fv_exists 
+    (update i (exist (fun x => wf_ty x) T h) empty)
+    body T' h0_2 i0 H7
+    ).
+    cbn in H1. destruct (eq_id_dec i0 i); subst; eauto; try contradiction.
+    inversion H1.
+
+    (* case tfix *)
+    inversion H; subst; eauto.
+    destruct 
+    (ctx_typed_fv_exists 
+    (update i (exist wf_ty T h) empty)
+    body T h0 i0 H5
+    ).
+    cbn in H0. destruct (eq_id_dec i0 i); subst; eauto; try contradiction.
+    inversion H0.
+Qed.
 
 
-Lemma typed_closed:
+
+
+Theorem typed_relative_closed:
     forall t T,
         has_type empty t T ->
         forall ctx,
             relative_ctx_eq t ctx empty.
+    intros t T h0.
+    poses' (typed_closed t T h0).
+    unfold relative_ctx_eq.
+    intros. destruct (H _ H0).
+Qed.
 
     intros t T h0.
     remember empty as ctx0.
