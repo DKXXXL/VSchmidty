@@ -929,7 +929,7 @@ Theorem has_type_unique:
     rewrite H in H6. inversion H6; subst; eauto.
 Qed.
 
-Inductive free_occur_in : id -> tm -> Prop :=
+Inductive free_occur_in : id -> tm -> Set :=
     | fo_rcons0 : forall i j t0 t1,
                 free_occur_in i t0 ->
                 free_occur_in i (trcons j t0 t1)
@@ -1118,6 +1118,115 @@ Theorem ctx_change:
     destruct (eq_id_dec i0 i); subst; eauto.
 Qed.
 
+Lemma ctx_typed_fv_exists:
+    forall ctx t T,
+        has_type ctx t T ->
+        (forall i, free_occur_in i t -> exists h, byContext ctx i = Some h).
+
+    intros ctx t T h0.
+    induction h0 ; subst; eauto; intros;
+    try (
+        (* Eliminate cases where free_occur doesn't satisfys *)
+        eexists; intros;
+        match goal with
+        | h : free_occur_in _ _ |- _ => inversion h; subst; eauto
+        end;
+        fail
+
+    );
+    try (
+        match goal with
+        | h: free_occur_in _ _ |- _ =>
+            inversion h; subst; eauto; fail
+        end
+    );
+    try (
+        (* Eliminate all cases that depends inductibly and no special cases *)
+    match goal with
+    | h : free_occur_in ?ii (_ _) |- _ => 
+            inversion h; subst; eauto;
+            
+                match goal with
+                | h : forall _:id, _ , h0 : free_occur_in ?ii _ |- _ -> _ =>
+                        destruct (h ii h0); glize h 0
+                end
+    end;
+    intros; eauto
+    ).
+
+    (* case tfun *)
+    inversion H; subst; eauto.
+    destruct (IHh0 i0 H5); subst; eauto.
+    cbn in H0. destruct (eq_id_dec i0 i); subst; eauto; try contradiction.
+    
+    (* case tlet *)
+    inversion H; subst; eauto. destruct (IHh0_2 i0 H6); subst; eauto.
+    cbn in H0; subst; eauto. destruct (eq_id_dec i0 i); subst; eauto; try contradiction.
+
+    (* case tfix*)
+    inversion H; subst; eauto. destruct (IHh0 i0 H5); subst; eauto.
+    cbn in H0; subst; eauto. destruct (eq_id_dec i0 i); subst; eauto; try contradiction.
+
+    Unshelve.
+    inversion H.
+Qed.
+
+
+Theorem typed_closed :
+    forall t T,
+        has_type empty t T ->
+        (forall i, ~ free_occur_in i t).
+
+    intros t T h0. remember empty as ctx0.
+    glize Heqctx0 0.
+    induction h0; intros; subst; intro;
+    repeat (
+        match goal with
+        | h : ?x = ?x -> _ |- _ => poses' (h eq_refl); clear h
+        end
+    );
+    try (
+        match goal with
+        | h : free_occur_in _ _ |- _ => 
+            inversion h; subst; eauto;
+            match goal with
+            | h0 : free_occur_in ?ii ?tt, h1 : forall _:id, ~ free_occur_in _ ?tt |- _ =>
+                destruct (h1 ii h0)
+            end
+        end; fail
+    ).
+
+    (* case tvar *)
+    inversion H.
+    (* case tfun*)
+    inversion H; subst; eauto.
+
+
+Lemma typed_closed:
+    forall t T,
+        has_type empty t T ->
+        forall ctx,
+            relative_ctx_eq t ctx empty.
+
+    intros t T h0.
+    remember empty as ctx0.
+    glize Heqctx0 0.
+    elim h0; unfold relative_ctx_eq; intros; subst;  intros;
+    try (match goal with
+        | h : free_occur_in _ _ |- _ => inversion h; eauto
+        end; fail );
+    repeat (match goal with
+    | h : ?x = ?x -> _ |- _ => poses' (h eq_refl); clear h
+    end).
+
+    (* case tvar *)
+    inversion H.
+    (* case tfun *)
+    inversion H1; subst; eauto. 
+
+
+
+
     
 
 Lemma preservation_on_subst0:
@@ -1129,7 +1238,8 @@ Lemma preservation_on_subst0:
         intros i t T0 w body.
         glize i t T0 0.
         induction body; intros; subst; eauto.
-        inversion H0; subst; eauto.
+        inversion H0; subst; eauto; cbn.
+
 
         (*remember empty as ctx0.
         remember (tfun i T0 w body) as f.
