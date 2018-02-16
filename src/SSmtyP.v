@@ -1068,6 +1068,32 @@ Definition relative_ctx_eq (t : tm) (ctx0 ctx1: Context) :=
     (forall i, free_occur_in i t ->  
                 byContext (type := {x : ty | wf_ty x}) ctx0 i = byContext ctx1 i).
 
+Theorem rce_refl:
+    forall t x,
+    relative_ctx_eq t x x.
+    unfold relative_ctx_eq.
+    eauto.
+Qed.
+
+Theorem rce_symm:
+    forall t x y,
+        relative_ctx_eq t x y ->
+        relative_ctx_eq t y x.
+    unfold relative_ctx_eq.
+    intros; eauto. symmetry. eauto.
+Qed.
+
+Theorem rcd_trans:
+    forall t x y z,
+        relative_ctx_eq t x y ->
+        relative_ctx_eq t y z ->
+        relative_ctx_eq t x z.
+    unfold relative_ctx_eq.
+    intros. poses' (H _ H1); poses' (H0 _ H1).
+    rewrite H2; rewrite H3.
+    auto.
+Qed.
+    
 Hint Unfold relative_ctx_eq.
 
 
@@ -1234,7 +1260,18 @@ Theorem typed_relative_closed:
 Qed.
 
 
-
+Lemma empty_typed_ctx_typed:
+    forall t T,
+        has_type empty t T ->
+        forall ctx,
+            has_type ctx t T.
+    
+    intros t T h0 ctx.
+    poses' (typed_relative_closed _ _ h0 ctx) .
+    eapply ctx_change; eauto.
+    eapply rce_symm; eauto.
+Qed.
+    
 
 
     
