@@ -8,7 +8,7 @@ Import Coq.ZArith.BinInt.
 
 
 
-Import Context.Context.
+Import Context.Context. 
 Require Import Coq.Lists.List.
 Require Import SSmty.
 Require Import LibTactics.
@@ -1288,6 +1288,7 @@ Theorem has_type_dec :
             | h0 : { _ :_ | _} |- _ => destruct h0; subst
             end
         ).
+
         Ltac eli_dupli_type :=
         repeat (
             match goal with
@@ -1296,16 +1297,29 @@ Theorem has_type_dec :
             end
         ).
 
-    intros ctx t.
-    glize ctx 0.
-    poses' empty_typed_ctx_typed.
-    induction t;intros ctx;
-    repeat (
+        Ltac either_left_or_right :=
+        subst; eauto;
+        try
+        (left; eauto; fail);
+        try
+        (right; intros TTT; intro hhh; inversion hhh; subst; eli_dupli_type; eauto; fail).
+    
+
+        Ltac apply_ctx_to_all ctx :=
+        repeat (
             match goal with
             | h0 : forall _:Context, _ |- _ => 
                 poses' (h0 ctx); clear h0
             end
-        );
+        ).
+
+    intros ctx t.
+    glize ctx 0.
+    poses' empty_typed_ctx_typed.
+    induction t;intros ctx;
+    try (
+        apply_ctx_to_all ctx
+    ;
     try((* Trivial cases *)
         poses' ht_none;
         poses' ht_int;
@@ -1333,14 +1347,81 @@ Theorem has_type_dec :
          eauto; try discriminate);
     try(
         left; eexists; eauto; fail
-    ).
+    );
+    try (
+        destruct (eq_ty_dec x TNat);
+        either_left_or_right;
+        fail
+    );
+    try (
+        destruct (eq_ty_dec x TNat);
+    destruct (eq_ty_dec x0 TNat);
+    either_left_or_right;
+    fail
+    );
+    try (
+        destruct (eq_ty_dec x TChr);
+        destruct (eq_ty_dec x0 TChr);
+        either_left_or_right;
+        fail
+    );
+    try (
+        destruct (eq_ty_dec x TBool);
+        destruct (eq_ty_dec x0 TBool);
+        either_left_or_right;
+        fail
+    );
+    fail).
+
+    Ltac if_impossible :=
+    dALL;
+    try
+    (right; intros TTT hhh;
+    inversion hhh; subst; eauto;
+    eli_dupli_type; subst; eauto;
+    try match goal with
+    | h: forall _, ~ has_type ?c ?t _, h1 : has_type ?c ?t _ |- _ =>
+            apply (h _ h1)
+    end; fail).
     (* cases by cases, can't get over it *)
     (* case trcons *)
+    apply_ctx_to_all ctx. 
+    if_impossible.
     destruct (only_rcd_dec x0).
     left; eexists; eauto.
     right; intros; intro hhh; inversion hhh; subst; eli_dupli_type; eauto.
 
+    (* case tif *)
+    apply_ctx_to_all ctx. 
+    if_impossible.
+    destruct (eq_ty_dec x TBool); 
+    destruct (eq_ty_dec x0 x1); either_left_or_right.
+
+    (* case tvar *)
+    remember (byContext ctx i) as U.
+    destruct U; eauto.
+    destruct s. left; exists x; eauto. 
+    right; intros; intro. inversion H0; subst. 
+    pattern (byContext ctx i) in HeqU.
+    rewrite H3 in HeqU. inversion HeqU.
+
+    (* case tfun *)
+    destruct (IHt (update i (exist wf_ty _ w) ctx));
+    try destruct s; either_left_or_right.
+    right; intros; intro h; inversion h; subst; eauto.
+    eapply n; eauto. erewrite (wf_ty_indistinct _ w h1). eauto.
+
     (* case *)
+    apply_ctx_to_all ctx. 
+    if_impossible.
+    destruct x; 
+    try(
+        right; intros TT; intro hh; inversion hh; subst; eli_dupli_type; eauto; try contradiction;
+        try discriminate; fail
+    );subst.
+    destruct (eq_ty_dec x1 x0); subst.
+    left; eexists x2; eauto. eapply ht_app; eauto. 
+
 
 
 

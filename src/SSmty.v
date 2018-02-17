@@ -226,7 +226,7 @@ Lemma type_not_rec_rcons1:
 Qed.
 
 
-Theorem type_eq_dec:
+Theorem eq_ty_dec:
     forall (T T' : ty),
         {T = T'} + {T <> T'}.
     intros T;
