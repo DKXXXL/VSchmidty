@@ -95,7 +95,7 @@ Inductive tm : Set :=
 
 
 
-Inductive subty  : ty -> ty -> Set :=
+Inductive subty  : ty -> ty -> Prop :=
 | stfun : forall x x' y y',
             subty x x' ->
             subty y' y ->
@@ -285,6 +285,191 @@ Theorem eq_ty_dec:
     try (left; eauto; fail);
     try (right; intro hhhh; inversion hhhh; subst; eauto; fail).
 Qed.
+
+Definition subty_dec_alg:
+    forall (T1 T2: ty),
+        bool.
+    intros T1 T2.
+    remember T1 as T1'; remember T2 as T2'.
+    symmetry in HeqT1'. symmetry in HeqT2'.
+    generalize dependent T2. generalize dependent T1.
+    generalize dependent T2'.
+    induction T1';
+    intros T2';
+    induction T2';
+    try(
+    intros T1 h0 T2 h1;
+    match goal with
+    | h0 : T1 = TNat, h1 :T2 = TNat |- _ =>
+        apply true
+    | h0 : T1 = TBool, h1 :T2 = TBool |- _ =>
+        apply true
+    | h0 : T1 = TChr, h1 : T2 = TChr |- _ =>
+        apply true
+    | h0 : T1 = TNone, h1: T2 = TNone |- _ =>
+        apply true
+    | h0: T1 = (TRcons _ _ _), h1: T2 = TNone |- _ =>
+        apply true
+    | |- _ => idtac
+    end; 
+    match goal with
+    | h0 : _ = TNat |- _ =>
+        apply false
+    | h0 : _ = TBool |- _ =>
+        apply false
+    | h0 : _ = TChr |- _ =>
+        apply false
+    | h1: T1 = TNone |- _ =>
+        apply false
+    | |- _ => idtac
+    end;
+    match goal with
+    | h0 : T1 = (?TF ?T0 ?T1),
+      h1 : T2 = (?TF ?T0' ?T1'),
+      h2 : forall (_ _: ty), _ = ?T0 ->
+            forall _, _ = _ -> bool,
+      h3 : forall (_ _: ty), _ = ?T1 ->
+            forall _, _ = _ -> bool |- _ =>
+        destruct (h2 T0' _ eq_refl _ eq_refl) eqn: hhh0;
+        destruct (h2 T1' _ eq_refl _ eq_refl) eqn: hhh1;
+        match goal with
+        | ha : _ = true, hb : _ = true |- _ =>
+            apply true
+        | |- _ => apply false
+        end
+    | h0 : T1 = (TRcons _ ?T0 ?T1),
+      h1 : T2 = (TRcons _ ?T0' ?T1') |- _ =>
+        idtac
+    | |- _ => apply false
+    end;
+    fail
+    ).
+    (* The only case left, TRCons, width & depth*)
+    intros.
+    destruct (IHT1'1 T2 _ eq_refl _ eq_refl) eqn:h1.
+    apply true.
+    destruct (IHT1'1 T2'1 _ eq_refl _ eq_refl) eqn:h2.
+    destruct (IHT1'2 T2'2 _ eq_refl _ eq_refl) eqn:h3.
+    apply true.
+    apply false.
+    apply false.
+Defined.
+
+Lemma subty_onlyrefl_tnat1:
+    forall T,
+        subty T TNat ->
+        T = TNat.
+    intros T h1.
+    remember TNat as Y.
+    generalize dependent HeqY.
+    induction h1; intros; subst; eauto;
+    try discriminate; try contradiction.
+    inversion H2.
+    rewrite IHh1_1; eauto.
+Qed.
+
+Lemma subty_onlyrefl_tnat0:
+    forall T,
+        subty TNat T ->
+        T = TNat.
+    intros T h1.
+    remember TNat as Y.
+    generalize dependent HeqY.
+    induction h1; intros; subst; eauto;
+    try discriminate; try contradiction.
+    rewrite IHh1_2; eauto.
+Qed.
+
+Lemma subty_onlyrefl_tchr1:
+    forall T,
+        subty T TChr ->
+        T = TChr.
+    intros T h1.
+    remember TChr as Y.
+    generalize dependent HeqY.
+    induction h1; intros; subst; eauto;
+    try discriminate; try contradiction.
+    inversion H2.
+    rewrite IHh1_1; eauto.
+Qed.
+
+Lemma subty_onlyrefl_tchr0:
+    forall T,
+        subty TChr T ->
+        T = TChr.
+    intros T h1.
+    remember TChr as Y.
+    generalize dependent HeqY.
+    induction h1; intros; subst; eauto;
+    try discriminate; try contradiction.
+    rewrite IHh1_2; eauto.
+Qed.
+
+Lemma subty_onlyrefl_tbool1:
+    forall T,
+        subty T TBool ->
+        T = TBool.
+    intros T h1.
+    remember TBool as Y.
+    generalize dependent HeqY.
+    induction h1; intros; subst; eauto;
+    try discriminate; try contradiction.
+    inversion H2.
+    rewrite IHh1_1; eauto.
+Qed.
+
+Lemma subty_onlyrefl_tbool0:
+    forall T,
+        subty TBool T ->
+        T = TBool.
+    intros T h1.
+    remember TBool as Y.
+    generalize dependent HeqY.
+    induction h1; intros; subst; eauto;
+    try discriminate; try contradiction.
+    rewrite IHh1_2; eauto.
+Qed.
+
+Lemma subty_
+
+(*Lemma subty_ext_fun:
+    forall T1 T1' T2 T2',
+        subty (TFun T1 T2) (TFun T1' T2') ->
+        subty T1 T1' /\ subty T2 T2'.*)
+
+Theorem subty_dec:
+    forall T1 T2,
+        {subty T1 T2} + {~ subty T1 T2}.
+
+    intros T1;
+    induction T1;
+    intros T2;
+    induction T2;
+    try (
+        right; intro;
+        match goal with
+        | h0 : subty TNat _ |- _ =>
+            poses' (subty_onlyrefl_tnat0 _ h0); eauto
+        | h0 : subty _ TNat |- _ =>
+            poses' (subty_onlyrefl_tnat1 _ h0); eauto
+        | h0 : subty TChr _ |- _ =>
+            poses' (subty_onlyrefl_tchr0 _ h0); eauto
+        | h0 : subty _ TChr |- _ =>
+            poses' (subty_onlyrefl_tchr1 _ h0); eauto
+        | h0 : subty TBool _ |- _ =>
+            poses' (subty_onlyrefl_tbool0 _ h0); eauto
+        | h0 : subty _ TBool |- _ =>
+            poses' (subty_onlyrefl_tbool1 _ h0); eauto
+        end; try discriminate; fail
+    );
+    try (
+        left; eauto; fail
+    ).
+
+
+
+
+
 
 
 
