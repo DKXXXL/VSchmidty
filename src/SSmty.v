@@ -127,5 +127,166 @@ Inductive subty  : ty -> ty -> Set :=
 
     Hint Constructors subty.
     
+Theorem only_rcd_dec:
+    forall T,
+        only_rcd T + {only_rcd T -> False}.
+    
+    intros.
+    induction T; subst; eauto;
+    try (
+        left; eauto; fail
+    );
+    try (right; intro h0; inversion h0; eauto; fail).
+    destruct IHT1; destruct IHT2; subst; eauto;
+    try(
+        right; intro h0; inversion h0; subst; eauto; fail
+    ).
+Qed.
+
+Theorem wf_ty_dec :
+    forall T,
+        {wf_ty T} + {~wf_ty T}.
+    
+    intros T.
+    induction T; subst; eauto;
+    
+        repeat (match goal with
+                | h0 : {_} + {_} |- _ => destruct h0; subst; eauto
+                end);
+    try (
+        try(
+            left; eauto; fail
+        );
+        try(
+            right; intro h0; inversion h0; subst; eauto; fail
+        );
+        fail
+    ).
+    destruct (only_rcd_dec T2);
+    try(
+        left; eauto; fail
+    );
+    try(
+        right; intro h0; inversion h0; subst; eauto; fail
+    ).
+Qed.
+
+Lemma type_not_rec_fun0:
+    forall T1 T2,
+        T1 <> TFun T1 T2.
+    intros T1;
+    induction T1; intros;
+    try (intro hh;  subst; eauto; inversion hh; subst; eauto; try discriminate; try contradiction; fail).
+    intro. inversion H; subst; eauto. eapply IHT1_1; eauto.
+Qed.
+
+Lemma type_not_rec_fun1:
+    forall T2 T1,
+        T2 <> TFun T1 T2.
+    intros T2;
+    induction T2; intros;
+    try (intro hh;  subst; eauto; inversion hh; subst; eauto; try discriminate; try contradiction; fail).
+    intro. inversion H; subst; eauto. eapply IHT2_2; eauto.
+Qed.
+
+Lemma type_not_rec_sum0:
+forall T1 T2,
+        T1 <> TSum T1 T2.
+    intros T1;
+    induction T1; intros;
+    try (intro hh;  subst; eauto; inversion hh; subst; eauto; try discriminate; try contradiction; fail).
+    intro. inversion H; subst; eauto. eapply IHT1_1; eauto.
+Qed.
+
+Lemma type_not_rec_sum1:
+    forall T2 T1,
+        T2 <> TSum T1 T2.
+    intros T2;
+    induction T2; intros;
+    try (intro hh;  subst; eauto; inversion hh; subst; eauto; try discriminate; try contradiction; fail).
+    intro. inversion H; subst; eauto. eapply IHT2_2; eauto.
+Qed.
+
+Lemma type_not_rec_rcons0:
+forall T1 T2 i,
+        T1 <> TRcons i T1 T2.
+    intros T1;
+    induction T1; intros;
+    try (intro hh;  subst; eauto; inversion hh; subst; eauto; try discriminate; try contradiction; fail).
+    intro. inversion H; subst; eauto. eapply IHT1_1; eauto.
+Qed.
+
+Lemma type_not_rec_rcons1:
+    forall T2 T1 i,
+        T2 <> TRcons i T1 T2.
+    intros T2;
+    induction T2; intros;
+    try (intro hh;  subst; eauto; inversion hh; subst; eauto; try discriminate; try contradiction; fail).
+    intro. inversion H; subst; eauto. eapply IHT2_2; eauto.
+Qed.
+
+
+Theorem type_eq_dec:
+    forall (T T' : ty),
+        {T = T'} + {T <> T'}.
+    intros T;
+    induction T;
+    intros T';
+    induction T'; subst; eauto;
+    try(
+    repeat (
+        match goal with
+        | h0 : {_}+{_} |- _ => destruct h0; subst; eauto
+        end
+    );
+    try
+    (left; eauto; fail);
+    try
+    (right; intro CCC; inversion CCC; eauto; fail);
+    fail
+    ).
+
+    (* case TFun *)
+    destruct IHT'1; destruct IHT'2; subst; eauto;
+    try (
+        right; 
+        try eapply type_not_rec_fun0;
+        try eapply type_not_rec_fun1;
+        fail
+    ).
+    destruct (IHT1 T'1); destruct (IHT2 T'2);
+    subst; eauto;
+    try (left; eauto; fail);
+    try (right; intro hhhh; inversion hhhh; subst; eauto).
+
+    (* case TSum*)
+    destruct IHT'1; destruct IHT'2; subst; eauto;
+    try (
+        right; 
+        try eapply type_not_rec_sum0;
+        try eapply type_not_rec_sum1;
+        fail
+    ).
+    destruct (IHT1 T'1); destruct (IHT2 T'2);
+    subst; eauto;
+    try (left; eauto; fail);
+    try (right; intro hhhh; inversion hhhh; subst; eauto).
+
+    (* case TRcd *)
+    destruct IHT'1; destruct IHT'2; subst; eauto;
+    try (
+        right; 
+        try eapply type_not_rec_rcons0;
+        try eapply type_not_rec_rcons1;
+        fail
+    ).
+    destruct (IHT1 T'1); destruct (IHT2 T'2); destruct (eq_id_dec i i0);
+    subst; eauto;
+    try (left; eauto; fail);
+    try (right; intro hhhh; inversion hhhh; subst; eauto; fail).
+Qed.
+
+
+
 
 End SSmty.

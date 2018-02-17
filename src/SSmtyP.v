@@ -1,5 +1,5 @@
 Add LoadPath "src".
-Require Import Maps.
+Require Import Maps. 
 Require Import Context.
 
 Require Import Coq.ZArith.Int.
@@ -41,6 +41,7 @@ Ltac glize :=
         | h0: _ \/ _ |- _ => destruct h0
         | h0: _ /\ _ |- _ => destruct h0
         | h0: exists _, _ |- _ => destruct h0
+        | h0: {_ | _} |- _ => destruct h0
         end
     ).
 
@@ -1271,7 +1272,76 @@ Lemma empty_typed_ctx_typed:
     eapply ctx_change; eauto.
     eapply rce_symm; eauto.
 Qed.
-    
+
+
+
+
+
+Theorem has_type_dec :
+    forall ctx t,
+        {T | has_type ctx t T} + {forall T, ~ has_type ctx t T}.
+
+        Ltac dALL :=
+        repeat (
+            match goal with
+            | h0 : _ + {_} |- _ => destruct h0; subst
+            | h0 : { _ :_ | _} |- _ => destruct h0; subst
+            end
+        ).
+        Ltac eli_dupli_type :=
+        repeat (
+            match goal with
+            | h0 : has_type ?c ?t0 ?T, h1 : has_type ?c ?t0 ?T1 |- _ =>
+                poses' (has_type_unique _ _ _ _ h0 h1); clear h1; subst; eauto
+            end
+        ).
+
+    intros ctx t.
+    glize ctx 0.
+    poses' empty_typed_ctx_typed.
+    induction t;intros ctx;
+    repeat (
+            match goal with
+            | h0 : forall _:Context, _ |- _ => 
+                poses' (h0 ctx); clear h0
+            end
+        );
+    try((* Trivial cases *)
+        poses' ht_none;
+        poses' ht_int;
+        poses' ht_chr;
+        poses' ht_true;
+        poses' ht_false; intros;
+        match goal with
+        | h0: forall _, has_type _ ?t0 _ |- {_| has_type _ ?t0 _} + {_}
+            => left; eauto
+        | h1: forall _ _, has_type _ ?t0 _ |- {_ | has_type _ ?t0 _} + {_}
+            => left; eauto
+        end;
+        fail);
+    try((* Impossible cases *)
+        dALL;
+        try
+        (right; intros TTT hhh;
+        inversion hhh; subst; eauto;
+        eli_dupli_type; subst; eauto;
+        try match goal with
+        | h: forall _, ~ has_type ?c ?t _, h1 : has_type ?c ?t _ |- _ =>
+                apply (h _ h1)
+        end; fail)
+        ; try discriminate; 
+         eauto; try discriminate);
+    try(
+        left; eexists; eauto; fail
+    ).
+    (* cases by cases, can't get over it *)
+    (* case trcons *)
+    destruct (only_rcd_dec x0).
+    left; eexists; eauto.
+    right; intros; intro hhh; inversion hhh; subst; eli_dupli_type; eauto.
+
+    (* case *)
+
 
 
     
@@ -1284,8 +1354,11 @@ Lemma preservation_on_subst0:
 
         intros i t T0 w body.
         glize i t T0 0.
+        poses' empty_typed_ctx_typed.
         induction body; intros; subst; eauto.
-        inversion H0; subst; eauto; cbn.
+        inversion H1; subst; eauto; cbn.
+        match goal with
+        | h0: has_type _ ?t0 ?T0 |- has_type _ ?t0 ?T0 =>
 
 
         (*remember empty as ctx0.
@@ -1365,7 +1438,7 @@ Theorem preservation:
             | H: step _ (if ?crit then _ else _) |- _ => destruct crit; subst; eauto; fail
             end); fail
     end.
-    Focus 4.
+    
 
 
 Definition  stuck (t : tm) := 
