@@ -430,7 +430,97 @@ Lemma subty_onlyrefl_tbool0:
     rewrite IHh1_2; eauto.
 Qed.
 
-Lemma subty_
+Lemma subty_onlyrefl_tnone0:
+    forall T,
+        subty TNone T ->
+        T = TNone.
+    intros T h1.
+    remember TNone as Y.
+    generalize dependent HeqY.
+    induction h1; intros; subst; eauto;
+    try discriminate; try contradiction.
+    rewrite IHh1_2; eauto.
+Qed.
+        
+
+Lemma subty_extrac_tfun0:
+    forall T0 T1 T,
+        subty (TFun T0 T1) T ->
+        (exists (T0' T1': ty), T = TFun T0' T1').
+    intros T0 T1 T h.
+    remember (TFun T0 T1) as TT.
+    generalize dependent T0. 
+    generalize dependent T1.
+    induction h; 
+    try(
+        intros T1 T0 hh;
+        subst; inversion hh; subst; eauto; fail
+    ).
+    intros. exists T0; exists T1; eauto.
+    intros.  destruct (IHh1 _ _ HeqTT).
+    destruct H; subst. eauto.
+Qed.
+
+Lemma subty_extrac_tfun1:
+    forall T0 T1 T,
+        subty T (TFun T0 T1) ->
+        (exists (T0' T1': ty), T = TFun T0' T1').
+    intros T0 T1 T h.
+    remember (TFun T0 T1) as TT.
+    generalize dependent T0. 
+    generalize dependent T1.
+    induction h; 
+    try(
+        intros T1 T0 hh;
+        subst; inversion hh; subst; eauto; fail
+    );
+    try (intros; eauto; fail).
+    intros; subst. inversion H2.
+    intros.  
+    destruct (IHh2 _ _ HeqTT).
+    destruct H. eauto.
+Qed.
+
+Lemma subty_extrac_tsum0:
+    forall T0 T1 T,
+        subty (TSum T0 T1) T ->
+        (exists (T0' T1': ty), T = TSum T0' T1').
+    intros T0 T1 T h.
+    remember (TSum T0 T1) as TT.
+    generalize dependent T0. 
+    generalize dependent T1.
+    induction h; 
+    try(
+        intros T1 T0 hh;
+        subst; inversion hh; subst; eauto; fail
+    ).
+    intros. exists T0; exists T1; eauto.
+    intros.  destruct (IHh1 _ _ HeqTT).
+    destruct H; subst. eauto.
+Qed.
+
+Lemma subty_extrac_tsum1:
+    forall T0 T1 T,
+        subty T (TSum T0 T1) ->
+        (exists (T0' T1': ty), T = TSum T0' T1').
+    intros T0 T1 T h.
+    remember (TSum T0 T1) as TT.
+    generalize dependent T0. 
+    generalize dependent T1.
+    induction h; 
+    try(
+        intros T1 T0 hh;
+        subst; inversion hh; subst; eauto; fail
+    );
+    try (intros; eauto; fail).
+    intros; subst. inversion H2.
+    intros.  
+    destruct (IHh2 _ _ HeqTT).
+    destruct H. eauto.
+Qed.
+
+
+
 
 (*Lemma subty_ext_fun:
     forall T1 T1' T2 T2',
@@ -460,11 +550,21 @@ Theorem subty_dec:
             poses' (subty_onlyrefl_tbool0 _ h0); eauto
         | h0 : subty _ TBool |- _ =>
             poses' (subty_onlyrefl_tbool1 _ h0); eauto
+        | h0 : subty TNone _ |- _ =>
+            poses' (subty_onlyrefl_tnone0 _ h0); eauto
+        | h0 : subty (TFun _ _) _ |- _ =>
+            poses' (subty_extrac_tfun0 _ h0); destructALL; eauto
+        | h0 : subty (TFun _ _) _ |- _ =>
+            poses' (subty_extrac_tfun0 _ h0); destructALL; eauto
         end; try discriminate; fail
     );
     try (
         left; eauto; fail
-    ).
+    );
+    try (
+        match goal with
+        | |- {_} + {}
+    )
 
 
 
