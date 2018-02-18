@@ -574,7 +574,6 @@ Lemma subty_rcons_none:
     destruct h2; eauto.
 Qed.
 
-  
 
 Axiom wf_ty_rcons_rcd:
     forall i T1 T2,
@@ -583,6 +582,22 @@ Axiom wf_ty_rcons_rcd:
 (* I don't know how the fuck this is happening
     I will try to make only_rcd into prop again.
 *)
+Theorem subty_refl_eq:
+    forall T1 T2,
+        subty T1 T2 ->
+        subty T2 T1 ->
+        T1 = T2.
+    intros T1 T2 h.
+    induction h; subst; eauto; intros; eauto.
+    (* case tfun *)
+    destruct (subty_extra_tfun _ _ _ _ H).
+    rewrite IHh1; eauto. rewrite IHh2; eauto.
+    (* case tsum*)
+    destruct (subty_extra_tsum _ _ _ _ H).
+    rewrite IHh1; try rewrite IHh2; eauto.
+    Focus 3.
+    inversion H1; subst; eauto. rewrite IHh; eauto.
+    Focus 2. 
 
 Theorem subty_dec_compl:
     forall T1 T2,
@@ -693,8 +708,11 @@ Theorem subty_dec_compl:
     clear IHT2_1. clear IHT2_2.
     poses' (IHT1_1 T2_1);
     poses' (IHT1_2 T2_2);
-    poses' (IHT1_2 (TRcons ))
-    destructALL;
+    poses' (IHT1_2 (TRcons i0 T2_1 T2_2);
+    poses' (IHT)
+    destruct (eq_id_dec i i0); subst; eauto;
+    destructALL.
+    fst; split; eauto. eapply strcdd.
     try (fst; split; eauto; fail);
     try (snd; split; eauto; 
         try (intro h0; extra_tcombine; subst; eauto; fail);
@@ -705,6 +723,7 @@ Theorem subty_dec_compl:
     try (fth; split; eauto;
         try (intro h0; extra_tcombine; subst; eauto; fail);
         fail).
+    
     
 
 
