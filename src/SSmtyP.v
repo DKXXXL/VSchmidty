@@ -77,15 +77,6 @@ Theorem rcd_field_ty_not_TNone:
     inversion H0.
 Qed.
 
-Theorem subty_wf:
-    forall a b,
-        subty a b ->
-        wf_ty a /\ wf_ty b.
-    
-    intros.
-    induction H; intros; subst;
-    try (destructALL; subst; eauto;fail).
-Qed.
 
 
 Lemma subty_rcd:
