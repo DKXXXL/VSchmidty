@@ -127,7 +127,7 @@ Inductive subty  : ty -> ty -> Prop :=
 
     Hint Constructors subty.
 
-    Ltac destructALL :=
+Ltac destructALL :=
     repeat (
         match goal with
         | h0: _ \/ _ |- _ => destruct h0
@@ -139,6 +139,28 @@ Inductive subty  : ty -> ty -> Prop :=
         | h0: _ + _ |- _ => destruct h0
         end
     ).
+
+
+Ltac general_val_ X u v :=
+    match v with
+      | 0 => X;(generalize dependent u)
+      | _ => general_val_ ltac:(X; generalize dependent u) v
+    end.
+
+Ltac glize :=
+    general_val_ idtac.
+
+Theorem subty_trans:
+    forall T1 T2 T3,
+        subty T1 T2 ->
+        subty T2 T3 ->
+        subty T1 T3.
+    intros T1 T2 T3 h.
+    glize T3 0.
+    induction h; subst; eauto.
+Qed.
+
+
 
 Theorem subty_wf:
     forall a b,
@@ -342,7 +364,7 @@ Lemma subty_onlyrefl_tnat1:
     generalize dependent HeqY.
     induction h1; intros; subst; eauto;
     try discriminate; try contradiction.
-    inversion H2.
+    inversion H0.
     rewrite IHh1_1; eauto.
 Qed.
 
@@ -367,7 +389,7 @@ Lemma subty_onlyrefl_tchr1:
     generalize dependent HeqY.
     induction h1; intros; subst; eauto;
     try discriminate; try contradiction.
-    inversion H2.
+    inversion H0.
     rewrite IHh1_1; eauto.
 Qed.
 
@@ -392,7 +414,7 @@ Lemma subty_onlyrefl_tbool1:
     generalize dependent HeqY.
     induction h1; intros; subst; eauto;
     try discriminate; try contradiction.
-    inversion H2.
+    inversion H0.
     rewrite IHh1_1; eauto.
 Qed.
 
@@ -453,7 +475,7 @@ Lemma subty_extrac_tfun1:
         subst; inversion hh; subst; eauto; fail
     );
     try (intros; eauto; fail).
-    intros; subst. inversion H2.
+    intros; subst. inversion H0.
     intros.  
     destruct (IHh2 _ _ HeqTT).
     destruct H. eauto.
@@ -491,7 +513,7 @@ Lemma subty_extrac_tsum1:
         subst; inversion hh; subst; eauto; fail
     );
     try (intros; eauto; fail).
-    intros; subst. inversion H2.
+    intros; subst. inversion H0.
     intros.  
     destruct (IHh2 _ _ HeqTT).
     destruct H. eauto.
@@ -551,14 +573,17 @@ Lemma subty_extra_tsum:
     split; eauto.
 Qed.
 
-Ltac general_val_ X u v :=
-    match v with
-      | 0 => X;(generalize dependent u)
-      | _ => general_val_ ltac:(X; generalize dependent u) v
-    end.
 
-Ltac glize :=
-    general_val_ idtac.
+Lemma subty_rcons_none0:
+    forall T,
+        only_rcd T ->
+        wf_ty T ->
+        subty T TNone.
+    intros T h.
+    induction h; intros; subst; eauto.
+    inversion H; subst; eauto.
+Qed.
+
 
 Lemma subty_rcons_none:
     forall i head tail T,
@@ -566,12 +591,10 @@ Lemma subty_rcons_none:
         wf_ty T ->
         only_rcd T ->
         subty T TNone.
-    intros i head tail T h0 h1 h2.
-    glize i head tail h1 0.
-    induction h2; subst; eauto.
-    intros. inversion h0; subst; eauto; inversion h1; subst; eauto.
-    eapply strcdw;eauto.
-    destruct h2; eauto.
+    intros.
+    poses' subty_rcons_none0.
+    eauto.
+    
 Qed.
 
 
@@ -579,9 +602,77 @@ Axiom wf_ty_rcons_rcd:
     forall i T1 T2,
         wf_ty (TRcons i T1 T2) ->
         only_rcd T2.
-(* I don't know how the fuck this is happening
-    I will try to make only_rcd into prop again.
-*)
+
+Lemma subty_extrac_trcons1:
+    forall i T T1 T2,
+        subty T (TRcons i T1 T2) ->
+        (exists T1' T2' i',
+            T = TRcons i' T1' T2').
+        
+    intros.
+    remember (TRcons i T1 T2) as T0.
+    glize T1 T2 i 0.
+    induction H;
+    intros; subst; eauto; try discriminate.
+    destruct (IHsubty2 _ _ _ eq_refl).
+    destructALL. eauto.
+Qed.
+
+Lemma subty_extrac_trans_trcons:
+    forall i T1 T2 T3 T,
+        subty (TRcons i T1 T2) T ->
+        subty T (TRcons i T3 T2) ->
+        exists T', T = TRcons i T' T2.
+    
+    intros i T1 T2 T3 T h h0.
+    remember (TRcons i T1 T2) as T0.
+    poses' (subty_extrac_trcons1 _ _ _ _ h0);
+    destructALL.
+    glize x x0 x1 i T3 T1 T2 0.
+    induction h; intros; subst; eauto; try discriminate.
+    inversion HeqT0; inversion H1; subst; eauto.
+    inversion HeqT0; subst ;eauto.
+    
+    
+
+Lemma subty_trcons_never_rec_:
+    forall i q p,
+        only_rcd q ->
+        ~subty q (TRcons i p q).
+
+    intros i q p h.
+    glize i p 0.
+    induction h; subst; eauto.
+    Focus 2. 
+    intros; intro.
+    inversion H; subst ;eauto.
+    Focus 4.
+Abort.
+
+
+
+
+
+Lemma subty_extrac_trcd0:
+    forall i p1 p2 q,
+        subty (TRcons i p2 q) (TRcons i p1 q) ->
+        subty p2 p1.
+    intros.
+    remember (TRcons i p2 q) as T1.
+    remember (TRcons i p1 q) as T2.
+    glize p1 p2 i 0.
+    induction H; intros; subst; eauto;
+    try discriminate.
+    inversion HeqT1; inversion HeqT2; subst; eauto.
+    inversion HeqT1; subst; eauto.
+    Focus 3.
+    poses' (IHsubty1 _ _ eq_refl).
+
+    destruct (subty_extrac_trcons1 _ _ _ _ H0); destructALL; eauto.
+
+
+
+
 Theorem subty_refl_eq:
     forall T1 T2,
         subty T1 T2 ->
@@ -595,9 +686,9 @@ Theorem subty_refl_eq:
     (* case tsum*)
     destruct (subty_extra_tsum _ _ _ _ H).
     rewrite IHh1; try rewrite IHh2; eauto.
-    Focus 3.
+    
     inversion H1; subst; eauto. rewrite IHh; eauto.
-    Focus 2. 
+    Focus 3. 
 
 Theorem subty_dec_compl:
     forall T1 T2,
