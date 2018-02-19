@@ -110,12 +110,10 @@ Inductive subty  : ty -> ty -> Prop :=
             subty p1 p2 ->
             subty (TRcons i p1 q) (TRcons i p2 q)
 | strcdw : forall i p q1 q2,
-            wf_ty q1 ->
-            only_rcd q1 ->
-            wf_ty q2 ->
-            only_rcd q2 ->
+            wf_ty q ->
+            only_rcd q ->
             wf_ty p ->
-            subty (TRcons i p q1) q2
+            subty (TRcons i p q) q
 | st_refl : forall t,
             wf_ty t ->
             subty t t
@@ -350,7 +348,7 @@ Lemma subty_onlyrefl_tnat1:
     generalize dependent HeqY.
     induction h1; intros; subst; eauto;
     try discriminate; try contradiction.
-    inversion H2.
+    inversion H0.
     rewrite IHh1_1; eauto.
 Qed.
 
@@ -375,7 +373,7 @@ Lemma subty_onlyrefl_tchr1:
     generalize dependent HeqY.
     induction h1; intros; subst; eauto;
     try discriminate; try contradiction.
-    inversion H2.
+    inversion H0.
     rewrite IHh1_1; eauto.
 Qed.
 
@@ -400,7 +398,7 @@ Lemma subty_onlyrefl_tbool1:
     generalize dependent HeqY.
     induction h1; intros; subst; eauto;
     try discriminate; try contradiction.
-    inversion H2.
+    inversion H0.
     rewrite IHh1_1; eauto.
 Qed.
 
