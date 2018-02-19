@@ -110,10 +110,13 @@ Inductive subty  : ty -> ty -> Prop :=
             subty p1 p2 ->
             subty (TRcons i p1 q) (TRcons i p2 q)
 | strcdw : forall i p q1 q2,
-            wf_ty q ->
-            only_rcd q ->
+            wf_ty q1 ->
+            only_rcd q1 ->
+            wf_ty q2 ->
+            only_rcd q2 ->
+            subty q1 q2 ->
             wf_ty p ->
-            subty (TRcons i p q) q
+            subty (TRcons i p q1) q2
 | st_refl : forall t,
             wf_ty t ->
             subty t t
@@ -348,7 +351,7 @@ Lemma subty_onlyrefl_tnat1:
     generalize dependent HeqY.
     induction h1; intros; subst; eauto;
     try discriminate; try contradiction.
-    inversion H0.
+    inversion H2.
     rewrite IHh1_1; eauto.
 Qed.
 
@@ -373,7 +376,7 @@ Lemma subty_onlyrefl_tchr1:
     generalize dependent HeqY.
     induction h1; intros; subst; eauto;
     try discriminate; try contradiction.
-    inversion H0.
+    inversion H2.
     rewrite IHh1_1; eauto.
 Qed.
 
@@ -398,7 +401,7 @@ Lemma subty_onlyrefl_tbool1:
     generalize dependent HeqY.
     induction h1; intros; subst; eauto;
     try discriminate; try contradiction.
-    inversion H0.
+    inversion H2.
     rewrite IHh1_1; eauto.
 Qed.
 
@@ -459,7 +462,7 @@ Lemma subty_extrac_tfun1:
         subst; inversion hh; subst; eauto; fail
     );
     try (intros; eauto; fail).
-    intros; subst. inversion H0.
+    intros; subst. inversion H2.
     intros.  
     destruct (IHh2 _ _ HeqTT).
     destruct H. eauto.
@@ -497,7 +500,7 @@ Lemma subty_extrac_tsum1:
         subst; inversion hh; subst; eauto; fail
     );
     try (intros; eauto; fail).
-    intros; subst. inversion H0.
+    intros; subst. inversion H2.
     intros.  
     destruct (IHh2 _ _ HeqTT).
     destruct H. eauto.
@@ -673,7 +676,8 @@ Theorem subty_struct_size_le:
     repeat rewrite (struct_size_reduce _ _ _ H3).
     auto.
 
-    repeat rewrite (struct_size_reduce _ _ _ h2).
+    inversion h1; subst; eauto.
+    repeat rewrite (struct_size_reduce _ _ _ H6).
     auto.
 
     rewrite (orcd_indistinct _ h2 h1).
@@ -719,11 +723,15 @@ Lemma subty_same_length_only_depth:
         try discriminate; fail
     ).
     intros. inversion HeqY; inversion HeqX; subst; eauto.
+    
     intros. inversion HeqX; subst; eauto.
-    (rewrite (struct_size_reduce _ _ _ h2 h1) in H2).
+    poses' (subty_extrac_trcons1 _ _ _ _ h0);destructALL. subst.
+    poses' (subty_struct_size_le _ _ H0 h2 h0).
+    rewrite <- H4 in H5.
+    (rewrite (struct_size_reduce _ _ _ H0 h1) in H5).
     omega.
+    intros. subst. inversion h1; inversion H; subst; eauto. inversion HeqX; subst; eauto;split; eauto.
 
-    intros. subst. inversion H; subst; eauto. inversion HeqX; subst; split; eauto.
 
     intros. subst; eauto.
     poses' (subty_extrac_trcons1 _ _ _ _ h0_2);destructALL.
