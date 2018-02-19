@@ -109,14 +109,11 @@ Inductive subty  : ty -> ty -> Prop :=
             only_rcd q ->
             subty p1 p2 ->
             subty (TRcons i p1 q) (TRcons i p2 q)
-| strcdw : forall i p q1 q2,
-            wf_ty q1 ->
-            only_rcd q1 ->
-            wf_ty q2 ->
-            only_rcd q2 ->
+| strcdw : forall i p q,
+            wf_ty q ->
+            only_rcd q ->
             wf_ty p ->
-            subty q1 q2 ->
-            subty (TRcons i p q1) q2
+            subty (TRcons i p q) q
 | st_refl : forall t,
             wf_ty t ->
             subty t t
@@ -127,7 +124,7 @@ Inductive subty  : ty -> ty -> Prop :=
 
     Hint Constructors subty.
 
-Ltac destructALL :=
+    Ltac destructALL :=
     repeat (
         match goal with
         | h0: _ \/ _ |- _ => destruct h0
@@ -140,26 +137,13 @@ Ltac destructALL :=
         end
     ).
 
+Axiom wf_ty_indistinct:
+    forall T (t1 t2: wf_ty T),
+        t1 = t2.
 
-Ltac general_val_ X u v :=
-    match v with
-      | 0 => X;(generalize dependent u)
-      | _ => general_val_ ltac:(X; generalize dependent u) v
-    end.
-
-Ltac glize :=
-    general_val_ idtac.
-
-Theorem subty_trans:
-    forall T1 T2 T3,
-        subty T1 T2 ->
-        subty T2 T3 ->
-        subty T1 T3.
-    intros T1 T2 T3 h.
-    glize T3 0.
-    induction h; subst; eauto.
-Qed.
-
+Axiom orcd_indistinct:
+    forall T (t1 t2: only_rcd T),
+        t1 = t2.
 
 
 Theorem subty_wf:
@@ -573,6 +557,14 @@ Lemma subty_extra_tsum:
     split; eauto.
 Qed.
 
+Ltac general_val_ X u v :=
+    match v with
+      | 0 => X;(generalize dependent u)
+      | _ => general_val_ ltac:(X; generalize dependent u) v
+    end.
+
+Ltac glize :=
+    general_val_ idtac.
 
 Lemma subty_rcons_none0:
     forall T,
@@ -598,6 +590,9 @@ Lemma subty_rcons_none:
 Qed.
 
 
+
+
+
 Axiom wf_ty_rcons_rcd:
     forall i T1 T2,
         wf_ty (TRcons i T1 T2) ->
@@ -618,6 +613,135 @@ Lemma subty_extrac_trcons1:
     destructALL. eauto.
 Qed.
 
+Axiom subty_rcd:
+    forall a b,
+        only_rcd b ->
+        subty a b ->
+        only_rcd a.
+    
+Definition struct_size : 
+    forall (t : ty) (h : only_rcd t), nat.
+    refine (
+        fix F t :=
+        match t with
+        | TNone => fun h0 => 0
+        | TRcons _ _ tail =>  fun h0 => _
+        | _ => fun h0 => _
+        end
+    );
+    try (match goal with
+            | h0 : only_rcd _ |- _ => inversion h0; fail
+        end
+        ).
+    inversion h0; subst.
+    poses' (F _ H0).
+    apply (S H).
+Defined.
+
+Print struct_size.
+
+Lemma struct_size_reduce:
+    forall i0 T1 T2 (h0: only_rcd T2) (h1: only_rcd (TRcons i0 T1 T2)),
+        struct_size (TRcons i0 T1 T2) h1 = S (struct_size T2 h0).
+    intros.
+
+    remember (TRcons i0 T1 T2) as T'.
+    glize T1 T2 i0 0.
+    destruct h1;
+    intros; try discriminate.
+    inversion HeqT'; subst; eauto.
+    pattern (struct_size (TRcons i0 T1 T2) (odRcd i0 T1 T2 h1)).
+    cbn. 
+    rewrite (orcd_indistinct _ h1 h0).
+    auto.
+Qed.
+
+Theorem subty_struct_size_le:
+    forall T1 T2 (h1: only_rcd T1) (h2: only_rcd T2),
+        subty T1 T2 ->
+        struct_size T2 h2 <= struct_size T1 h1.
+    
+    intros T1 T2 h1 h2 H.
+    glize h1 h2 0.
+    induction H; 
+    try (
+        intros h2 h1; subst; eauto;
+        inversion h2; inversion h1; subst; eauto; fail
+    ); intros.
+
+    inversion h1; inversion h2; subst; eauto.
+    repeat rewrite (struct_size_reduce _ _ _ H3).
+    auto.
+
+    repeat rewrite (struct_size_reduce _ _ _ h2).
+    auto.
+
+    rewrite (orcd_indistinct _ h2 h1).
+    auto.
+
+    poses' (subty_rcd _ _ h2 H0 ).
+    poses' (IHsubty1 H1 h1).
+    poses' (IHsubty2 h2 H1).
+    omega.
+Qed.
+
+    
+
+Lemma subty_trcons_never_rec:
+    forall i q p,
+        only_rcd q ->
+        ~subty q (TRcons i p q).
+
+    intros i q p h0 h2.
+    poses' (odRcd i p q h0).
+    poses' (subty_struct_size_le _ _ h0 H h2).
+    rewrite (struct_size_reduce _ _ _ h0) in H0.
+    omega.
+Qed.
+
+
+Lemma subty_same_length_only_depth:
+    forall i j T1 T2 T3 T4,
+        subty (TRcons i T1 T2) (TRcons j T3 T4) ->
+        forall (h1: only_rcd (TRcons i T1 T2)) 
+        (h2: only_rcd (TRcons j T3 T4)),
+        struct_size (TRcons i T1 T2) h1 = 
+        struct_size (TRcons j T3 T4) h2 ->
+        subty T1 T3 /\ subty T2 T4.
+
+    intros i j T1 T2 T3 T4 h0.
+    remember (TRcons i T1 T2) as X.
+    remember (TRcons j T3 T4) as Y.
+    glize T1 T2 T3 T4 i j 0.
+    induction h0; 
+    try (
+        intros; subst; eauto;
+        try discriminate; fail
+    ).
+    intros. inversion HeqY; inversion HeqX; subst; eauto.
+    intros. inversion HeqX; subst; eauto.
+    (rewrite (struct_size_reduce _ _ _ h2 h1) in H2).
+    omega.
+
+    intros. subst. inversion H; subst; eauto. inversion HeqX; subst; split; eauto.
+
+    intros. subst; eauto.
+    poses' (subty_extrac_trcons1 _ _ _ _ h0_2);destructALL.
+    
+    poses' (IHh0_1 _ _ _ _ H0 _ _ eq_refl).
+    poses' (IHh0_2 _ _ _ _ eq_refl _ _ H0).
+    poses' (subty_rcd _ _ h2 h0_2).
+    poses' (subty_struct_size_le _ _ h1 H3 h0_1).
+    poses' (subty_struct_size_le _ _ H3 h2 h0_2).
+    assert (struct_size t1 H3 = struct_size (TRcons j T3 T4) h2);
+    try omega.
+    poses' (H1 h1 H3). poses' (H2 H3 h2).
+    repeat rewrite H in *;  repeat rewrite H6 in *; eauto.
+    destruct (H7 eq_refl); destruct (H8 eq_refl); eauto.
+Qed.
+
+
+
 Lemma subty_extrac_trans_trcons:
     forall i T1 T2 T3 T,
         subty (TRcons i T1 T2) T ->
@@ -630,24 +754,15 @@ Lemma subty_extrac_trans_trcons:
     destructALL.
     glize x x0 x1 i T3 T1 T2 0.
     induction h; intros; subst; eauto; try discriminate.
-    inversion HeqT0; inversion H1; subst; eauto.
-    inversion HeqT0; subst ;eauto.
-    
+    inversion H1; inversion HeqT0; subst; eauto.
+    inversion HeqT0; subst; eauto.
+    destruct (subty_trcons_never_rec _ _ _ H0 h0).
+    poses' (subty_extrac_trcons1 _ _ _ _ h2);
+    destructALL.
+    poses' (IHh2 _ _ T3 _ H).
+
     
 
-Lemma subty_trcons_never_rec_:
-    forall i q p,
-        only_rcd q ->
-        ~subty q (TRcons i p q).
-
-    intros i q p h.
-    glize i p 0.
-    induction h; subst; eauto.
-    Focus 2. 
-    intros; intro.
-    inversion H; subst ;eauto.
-    Focus 4.
-Abort.
 
 
 
@@ -669,7 +784,7 @@ Lemma subty_extrac_trcd0:
     poses' (IHsubty1 _ _ eq_refl).
 
     destruct (subty_extrac_trcons1 _ _ _ _ H0); destructALL; eauto.
-
+Abort.
 
 
 
@@ -688,7 +803,8 @@ Theorem subty_refl_eq:
     rewrite IHh1; try rewrite IHh2; eauto.
     
     inversion H1; subst; eauto. rewrite IHh; eauto.
-    Focus 3. 
+    destruct (type_not_rec_rcons1 _ _ _ H6).
+
 
 Theorem subty_dec_compl:
     forall T1 T2,

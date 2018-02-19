@@ -79,18 +79,6 @@ Qed.
 
 
 
-Lemma subty_rcd:
-    forall a b,
-        only_rcd b ->
-        subty a b ->
-        only_rcd a.
-    
-    intros a b h0 h2.
-    induction h2; subst; eauto; intros;
-    try match goal with
-    | h0 : only_rcd (_ _) |- _ => inversion h0; subst; eauto; fail
-    end.
-Qed.
 
 Lemma subty_none_a_a__none:
     forall a,
@@ -540,13 +528,7 @@ Inductive step : tm -> tm -> Prop :=
 
     Hint Constructors step.
 
-Axiom wf_ty_indistinct:
-    forall T (t1 t2: wf_ty T),
-        t1 = t2.
 
-Axiom orcd_indistinct:
-    forall T (t1 t2: only_rcd T),
-        t1 = t2.
 
 
 
