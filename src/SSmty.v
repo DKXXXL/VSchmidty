@@ -890,26 +890,161 @@ Theorem subty_dec_compl:
     fth; split; intro; eauto. destruct (subty_wf _ _ H); eauto.
     poses' (subty_onlyrefl_tnone0 _ H). try discriminate.
 
+    Ltac construct_wf_ty_and_orcd :=
+        repeat match goal with
+        | h0 : subty _ _ |- _ =>
+            destruct (subty_wf _ _ h0);
+            destructALL; glize h0 0
+        end; intros.
+
+    Ltac subty_remove_eq :=
+        repeat 
+        match goal with
+        | h0 : subty ?x ?y , h1 : subty ?y ?x |- _ =>
+            poses' (subty_refl_eq _ _ h0 h1);
+            subst; clear h1
+        end.
+
+    Ltac subty_rec_contradict :=
+        match goal with
+        | h0 : subty ?x (TRcons _ _ ?x) |- _ =>
+            assert (only_rcd x); eauto;
+            match goal with
+            | h1 : only_rcd x |- _ =>
+                destruct (subty_trcons_never_rec _ _ _ h1 h0); eauto
+            end
+        end.
+    Ltac rcdty_rec_contradict :=
+        match goal with
+        | h0 : ?x = TRcons _ _ ?x |- _ =>
+            destruct (type_not_rec_rcons1 _ _ _ h0);
+            eauto
+        | h0 : ?x = TRcons _ ?x _ |- _ =>
+            destruct (type_not_rec_rcons0 _ _ _ h0);
+            eauto
+        | h0 : TRcons _ ?x _ = ?x |- _ =>
+            destruct (type_not_rec_rcons0 _ _ _ h0);
+            eauto
+        | h0 : TRcons _ _ ?x = ?x |- _ =>
+            destruct (type_not_rec_rcons1 _ _ _ h0);
+            eauto
+        end.
+
+    Ltac inver_all_useful :=
+        repeat match goal with
+        | h0 : wf_ty (_ _) |- _ =>
+            inversion h0; subst; eauto; glize h0 0
+        | h1 : only_rcd (_ _) |- _ =>
+            inversion h1; subst; eauto; glize h1
+        end; intros.
+
+    Ltac clear_dupli :=
+        repeat match goal with
+        | h0 : wf_ty ?x, h1 : wf_ty ?x |- _ =>
+            clear h1
+        | h0 : only_rcd ?x, h1 : only_rcd ?x |- _ =>
+            clear h1
+        end.
+
+    Ltac generally :=
+        match goal with
+        | h0 : subty ?x0 ?y0, h1: subty ?x1 ?y1 |-
+            subty (TRcons ?i0 ?x0 ?x1) (TRcons ?i0 ?y0 ?y1) =>
+                assert (wf_ty x1); eauto;
+                assert (only_rcd x1); eauto;
+                assert (subty (TRcons i0 x0 y1) (TRcons i0 x1 y1)); eauto;
+                eauto using st_trans
+        | h1 : subty ?y0 (TRcons ?i0 ?x1 ?y1) |-
+            subty (TRcons ?i0 ?x0 ?y0) (TRcons ?i0 ?x1 ?y1) =>
+                assert (wf_ty y0); eauto;
+                assert (wf_ty x0); eauto;
+                assert (only_rcd y0); eauto;
+                assert (subty (TRcons i0 x0 y0) y0); eauto;
+                assert (subty y0 (TRcons i0 x1 y1)); eauto using st_trans
+        | |- ~ _ =>
+            intro hh0; inver_all_useful;subty_remove_eq;
+            construct_wf_ty_and_orcd;clear_dupli;subty_remove_eq;
+            try subty_rec_contradict;
+            try rcdty_rec_contradict;subst; eauto
+        end.
+
     clear IHT2_1. clear IHT2_2.
+    destruct (only_rcd_dec T1_2).
+    destruct (wf_ty_dec T1_1); destruct (wf_ty_dec T1_2);
+    destruct (wf_ty_dec T2_1); destruct (wf_ty_dec T2_2).
+    destruct (eq_id_dec i i0).
     poses' (IHT1_1 T2_1);
     poses' (IHT1_2 T2_2);
-    poses' (IHT1_2 (TRcons i0 T2_1 T2_2);
-    poses' (IHT)
-    destruct (eq_id_dec i i0); subst; eauto;
+    poses' (IHT1_2 (TRcons i0 T2_1 T2_2));
+    subst; eauto;
     destructALL.
-    fst; split; eauto. eapply strcdd.
-    try (fst; split; eauto; fail);
-    try (snd; split; eauto; 
-        try (intro h0; extra_tcombine; subst; eauto; fail);
-        fail);
-    try (trd; split; eauto;
-        try (intro h0; extra_tcombine; subst; eauto; fail);
-        fail);
-    try (fth; split; eauto;
-        try (intro h0; extra_tcombine; subst; eauto; fail);
-        fail).
+    try (fst; split; generally; fail);
+    try (snd; split; generally; fail);
+    try (trd; split; generally; fail);
+    try (fth; split; generally; fail). 
+    Abort.
+
+Lemma subty_dec_compl:
+    forall T1 T2,
+        T1 <> T2 ->
+        {subty T1 T2} +
+        {~subty T1 T2 }.
+
+    Ltac extra_tcombine' :=
+        (match goal with
+        | h0 : subty (TFun _ _) _ |- _ =>
+            poses' (subty_extrac_tfun0 _ _ _ h0); destructALL; eauto
+        | h0 : subty _ (TFun _ _) |- _ =>
+            poses' (subty_extrac_tfun1 _ _ _ h0); destructALL; eauto
+        | h0 : subty (TSum _ _) _ |- _ =>
+            poses' (subty_extrac_tsum0 _ _ _ h0); destructALL; eauto
+        | h0 : subty _ (TSum _ _) |- _ =>
+            poses' (subty_extrac_tsum1 _ _ _ h0); destructALL; eauto
+        end); intros.
+
+    intros T1;
+    induction T1;
+    try (
+        intros;
+        right; intro;
+        match goal with
+        | h0 : subty TNat _ |- _ =>
+            poses' (subty_onlyrefl_tnat0 _ h0); eauto
+        | h0 : subty _ TNat |- _ =>
+            poses' (subty_onlyrefl_tnat1 _ h0); eauto
+        | h0 : subty TChr _ |- _ =>
+            poses' (subty_onlyrefl_tchr0 _ h0); eauto
+        | h0 : subty _ TChr |- _ =>
+            poses' (subty_onlyrefl_tchr1 _ h0); eauto
+        | h0 : subty TBool _ |- _ =>
+            poses' (subty_onlyrefl_tbool0 _ h0); eauto
+        | h0 : subty _ TBool |- _ =>
+            poses' (subty_onlyrefl_tbool1 _ h0); eauto
+        | h0 : subty TNone _ |- _ =>
+            poses' (subty_onlyrefl_tnone0 _ h0); eauto
+        | h0 : subty (TFun _ _) _ |- _ =>
+            poses' (subty_extrac_tfun0 _ _ _ h0); destructALL; eauto
+        | h0 : subty _ (TFun _ _) |- _ =>
+            poses' (subty_extrac_tfun1 _ _ _ h0); destructALL; eauto
+        | h0 : subty (TSum _ _) _ |- _ =>
+            poses' (subty_extrac_tsum0 _ _ _ h0); destructALL; eauto
+        | h0 : subty _ (TSum _ _) |- _ =>
+            poses' (subty_extrac_tsum1 _ _ _ h0); destructALL; eauto
+        end; try discriminate; fail
+    );
+    try (
+        fst; eauto; fail
+    ).
+    destruct T2;
+    subst; right; intro; 
+    extra_tcombine'; try discriminate.
+Abort.
     
     
+
+    
+    
+
 
 
 
