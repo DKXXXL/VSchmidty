@@ -741,40 +741,23 @@ Lemma subty_same_length_only_depth:
 Qed.
 
 
-
-Lemma subty_extrac_trans_trcons:
-    forall i T1 T2 T3 T,
-        subty (TRcons i T1 T2) T ->
-        subty T (TRcons i T3 T2) ->
-        exists T', T = TRcons i T' T2.
-    
-    intros.
-    destruct (subty_)
-
-    
-
-
-
-
-
-
 Lemma subty_extrac_trcd0:
     forall i p1 p2 q,
         subty (TRcons i p2 q) (TRcons i p1 q) ->
         subty p2 p1.
     intros.
-    remember (TRcons i p2 q) as T1.
-    remember (TRcons i p1 q) as T2.
-    glize p1 p2 i 0.
-    induction H; intros; subst; eauto;
-    try discriminate.
-    inversion HeqT1; inversion HeqT2; subst; eauto.
-    inversion HeqT1; subst; eauto.
-    Focus 3.
-    poses' (IHsubty1 _ _ eq_refl).
+    destruct (subty_wf _ _ H).
+    inversion H0; inversion H1; subst; eauto.
 
-    destruct (subty_extrac_trcons1 _ _ _ _ H0); destructALL; eauto.
-Abort.
+    poses' (
+        subty_same_length_only_depth _ _ _ _ _ _ H ).
+    assert (only_rcd (TRcons i p2 q)); eauto.
+    assert (only_rcd  (TRcons i p1 q)); eauto.
+    destruct (H2 H3 H4).
+    repeat erewrite (struct_size_reduce _ _ _ H13).
+    auto. auto.
+Qed.
+
 
 
 
@@ -794,6 +777,11 @@ Theorem subty_refl_eq:
     
     inversion H1; subst; eauto. rewrite IHh; eauto.
     destruct (type_not_rec_rcons1 _ _ _ H6).
+    rewrite IHh; eauto. eapply subty_extrac_trcd0; eauto.
+
+    destruct (subty_trcons_never_rec _ _ _ H0 H2).
+    rewrite IHh1; eauto.
+Qed.
 
 
 Theorem subty_dec_compl:
