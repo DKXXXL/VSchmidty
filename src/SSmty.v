@@ -748,18 +748,8 @@ Lemma subty_extrac_trans_trcons:
         subty T (TRcons i T3 T2) ->
         exists T', T = TRcons i T' T2.
     
-    intros i T1 T2 T3 T h h0.
-    remember (TRcons i T1 T2) as T0.
-    poses' (subty_extrac_trcons1 _ _ _ _ h0);
-    destructALL.
-    glize x x0 x1 i T3 T1 T2 0.
-    induction h; intros; subst; eauto; try discriminate.
-    inversion H1; inversion HeqT0; subst; eauto.
-    inversion HeqT0; subst; eauto.
-    destruct (subty_trcons_never_rec _ _ _ H0 h0).
-    poses' (subty_extrac_trcons1 _ _ _ _ h2);
-    destructALL.
-    poses' (IHh2 _ _ T3 _ H).
+    intros.
+    destruct (subty_)
 
     
 
