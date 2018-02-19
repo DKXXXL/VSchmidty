@@ -947,6 +947,8 @@ Theorem subty_dec_compl:
         end.
 
     Ltac generally :=
+        try (
+        right; split;clear_dupli;
         match goal with
         | h0 : subty ?x0 ?y0, h1: subty ?x1 ?y1 |-
             subty (TRcons ?i0 ?x0 ?x1) (TRcons ?i0 ?y0 ?y1) =>
@@ -966,6 +968,37 @@ Theorem subty_dec_compl:
             construct_wf_ty_and_orcd;clear_dupli;subty_remove_eq;
             try subty_rec_contradict;
             try rcdty_rec_contradict;subst; eauto
+        end; fail);
+        left; generally; idtac 1; idtac 2.
+
+    Ltac general_process :=
+        construct_wf_ty_and_orcd;clear_dupli;
+        match goal with
+        | h0 : subty ?x0 ?y0, h1: subty ?x1 ?y1 |-
+            subty (TRcons ?i0 ?x0 ?x1) (TRcons ?i0 ?y0 ?y1) =>
+                assert (subty (TRcons i0 x0 y1) (TRcons i0 x1 y1)); eauto;
+                eauto using st_trans
+        | h1 : subty ?y0 (TRcons ?i0 ?x1 ?y1) |-
+            subty (TRcons ?i0 ?x0 ?y0) (TRcons ?i0 ?x1 ?y1) =>
+                assert (subty (TRcons i0 x0 y0) y0); eauto;
+                assert (subty y0 (TRcons i0 x1 y1)); eauto using st_trans
+        | |- ~ _ =>
+            intro hh0; inver_all_useful;subty_remove_eq;
+            construct_wf_ty_and_orcd;clear_dupli;subty_remove_eq;
+            try subty_rec_contradict;
+            try rcdty_rec_contradict;subst; eauto
+        end.
+    Ltac generally' :=
+        match goal with
+        | |- {_} + {_} =>
+            try (
+            right; split;eauto; general_process ; fail);
+            left; split; general_process; idtac 1; idtac 2; fail
+        | |- _ + {_} =>
+            try (
+            right; split; eauto; general_process ; fail);
+            left; generally'; idtac 1; idtac 2
+        | |- _ => idtac
         end.
 
     clear IHT2_1. clear IHT2_2.
@@ -977,72 +1010,12 @@ Theorem subty_dec_compl:
     poses' (IHT1_2 T2_2);
     poses' (IHT1_2 (TRcons i0 T2_1 T2_2));
     subst; eauto;
-    destructALL.
-    try (fst; split; generally; fail);
-    try (snd; split; generally; fail);
-    try (trd; split; generally; fail);
-    try (fth; split; generally; fail). 
-    Abort.
-
-Lemma subty_dec_compl:
-    forall T1 T2,
-        T1 <> T2 ->
-        {subty T1 T2} +
-        {~subty T1 T2 }.
-
-    Ltac extra_tcombine' :=
-        (match goal with
-        | h0 : subty (TFun _ _) _ |- _ =>
-            poses' (subty_extrac_tfun0 _ _ _ h0); destructALL; eauto
-        | h0 : subty _ (TFun _ _) |- _ =>
-            poses' (subty_extrac_tfun1 _ _ _ h0); destructALL; eauto
-        | h0 : subty (TSum _ _) _ |- _ =>
-            poses' (subty_extrac_tsum0 _ _ _ h0); destructALL; eauto
-        | h0 : subty _ (TSum _ _) |- _ =>
-            poses' (subty_extrac_tsum1 _ _ _ h0); destructALL; eauto
-        end); intros.
-
-    intros T1;
-    induction T1;
-    try (
-        intros;
-        right; intro;
-        match goal with
-        | h0 : subty TNat _ |- _ =>
-            poses' (subty_onlyrefl_tnat0 _ h0); eauto
-        | h0 : subty _ TNat |- _ =>
-            poses' (subty_onlyrefl_tnat1 _ h0); eauto
-        | h0 : subty TChr _ |- _ =>
-            poses' (subty_onlyrefl_tchr0 _ h0); eauto
-        | h0 : subty _ TChr |- _ =>
-            poses' (subty_onlyrefl_tchr1 _ h0); eauto
-        | h0 : subty TBool _ |- _ =>
-            poses' (subty_onlyrefl_tbool0 _ h0); eauto
-        | h0 : subty _ TBool |- _ =>
-            poses' (subty_onlyrefl_tbool1 _ h0); eauto
-        | h0 : subty TNone _ |- _ =>
-            poses' (subty_onlyrefl_tnone0 _ h0); eauto
-        | h0 : subty (TFun _ _) _ |- _ =>
-            poses' (subty_extrac_tfun0 _ _ _ h0); destructALL; eauto
-        | h0 : subty _ (TFun _ _) |- _ =>
-            poses' (subty_extrac_tfun1 _ _ _ h0); destructALL; eauto
-        | h0 : subty (TSum _ _) _ |- _ =>
-            poses' (subty_extrac_tsum0 _ _ _ h0); destructALL; eauto
-        | h0 : subty _ (TSum _ _) |- _ =>
-            poses' (subty_extrac_tsum1 _ _ _ h0); destructALL; eauto
-        end; try discriminate; fail
-    );
-    try (
-        fst; eauto; fail
-    ).
-    destruct T2;
-    subst; right; intro; 
-    extra_tcombine'; try discriminate.
-Abort.
+    destructALL;
+    subty_remove_eq;
+    try (generally'; fail).
     
-    
-
-    
+    generally'.
+    left; split; general_process.
     
 
 
