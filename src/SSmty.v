@@ -109,11 +109,13 @@ Inductive subty  : ty -> ty -> Prop :=
             only_rcd q ->
             subty p1 p2 ->
             subty (TRcons i p1 q) (TRcons i p2 q)
-| strcdw : forall i p q,
-            wf_ty q ->
-            only_rcd q ->
+| strcdw : forall i p q1 q2,
+            wf_ty q1 ->
+            only_rcd q1 ->
+            wf_ty q2 ->
+            only_rcd q2 ->
             wf_ty p ->
-            subty (TRcons i p q) q
+            subty (TRcons i p q1) q2
 | st_refl : forall t,
             wf_ty t ->
             subty t t
@@ -348,7 +350,7 @@ Lemma subty_onlyrefl_tnat1:
     generalize dependent HeqY.
     induction h1; intros; subst; eauto;
     try discriminate; try contradiction.
-    inversion H0.
+    inversion H2.
     rewrite IHh1_1; eauto.
 Qed.
 
@@ -373,7 +375,7 @@ Lemma subty_onlyrefl_tchr1:
     generalize dependent HeqY.
     induction h1; intros; subst; eauto;
     try discriminate; try contradiction.
-    inversion H0.
+    inversion H2.
     rewrite IHh1_1; eauto.
 Qed.
 
@@ -398,7 +400,7 @@ Lemma subty_onlyrefl_tbool1:
     generalize dependent HeqY.
     induction h1; intros; subst; eauto;
     try discriminate; try contradiction.
-    inversion H0.
+    inversion H2.
     rewrite IHh1_1; eauto.
 Qed.
 
@@ -758,8 +760,45 @@ Lemma subty_extrac_trcd0:
     auto. auto.
 Qed.
 
+Lemma subty_extrac_trcd1:
+    forall i j p1 p2 q1 q2,
+        subty (TRcons i p1 q1) (TRcons j p2 q2) ->
+        (i = j /\ subty p1 p2 /\ subty q1 q2) \/
+        (subty q1 (TRcons j p2 q2)).
+    
+    intros i j p1 p2 q1 q2 h0.
+    remember (TRcons i p1 q1) as T1.
+    remember (TRcons j p2 q2) as T2.
+    glize p1 q1 p2 q2 i j 0.
+    induction h0; intros; subst; try discriminate.
+    inversion HeqT2; inversion HeqT1; subst; eauto.
+    inversion HeqT1; subst; eauto.
+    inversion HeqT1; subst; eauto.
+    inversion H; subst; eauto.
+    left; repeat split; eauto.
 
+    destruct (subty_extrac_trcons1 _ _ _ _ h0_2); destructALL; subst; eauto.
 
+    destruct (IHh0_2 _ _ _ _ eq_refl _ _ eq_refl); destructALL. subst; eauto.
+    poses' (IHh0_1 _ _ _ _ eq_refl _ _ eq_refl); destructALL; subst; eauto.
+    destruct (subty_wf _    _ h0_1); destruct (subty_wf _ _ h0_2); destructALL.
+    inversion H; inversion H4; inversion H6; subst; eauto.
+    left; repeat split; eauto.
+    poses' (IHh0_1 _ _ _ _ eq_refl _ _ eq_refl); destructALL; subst; eauto.
+Qed.
+
+Lemma subty_tran_cons0:
+    forall i p q1 q2,
+        only_rcd q1 ->
+        only_rcd q2 ->
+        wf_ty p ->
+        subty q1 q2 ->
+        subty (TRcons i p q1) (TRcons i p q2).
+    intros i p q1 q2 h0.
+    glize p i q2 0.
+    induction h0; eauto.
+    intros. poses' (subty_onlyrefl_tnone0 _ H1); subst; eauto.
+    intros. 
 
 Theorem subty_refl_eq:
     forall T1 T2,
@@ -930,6 +969,17 @@ Theorem subty_dec_compl:
             eauto
         end.
 
+    Ltac trcd_extrac_subty0 :=
+        match goal with
+        | h0 : subty (TRcons ?i0 ?x0 ?y) (TRcons ?i0 ?x1 ?y) |- _ =>
+            poses' (subty_extrac_trcd0 _ _ _ _ h0)
+        end.
+    Ltac trcd_extrac_subty1 :=
+        match goal with
+        | h0 : subty (TRcons _ _ _) (TRcons _ _ _) |- _ =>
+            poses' (subty_extrac_trcd1 _ _ _ _ _ _ h0); destructALL
+        end.
+
     Ltac inver_all_useful :=
         repeat match goal with
         | h0 : wf_ty (_ _) |- _ =>
@@ -943,6 +993,8 @@ Theorem subty_dec_compl:
         | h0 : wf_ty ?x, h1 : wf_ty ?x |- _ =>
             clear h1
         | h0 : only_rcd ?x, h1 : only_rcd ?x |- _ =>
+            clear h1
+        | h0 : subty ?x ?y, h1 : subty ?x ?y |- _ =>
             clear h1
         end.
 
@@ -976,14 +1028,28 @@ Theorem subty_dec_compl:
         match goal with
         | h0 : subty ?x0 ?y0, h1: subty ?x1 ?y1 |-
             subty (TRcons ?i0 ?x0 ?x1) (TRcons ?i0 ?y0 ?y1) =>
+            assert (wf_ty x1); eauto;
+            assert (only_rcd x1); eauto;
                 assert (subty (TRcons i0 x0 y1) (TRcons i0 x1 y1)); eauto;
-                eauto using st_trans
+                assert (subty (TRcons i0 x0 x1) (TRcons i0 x0 y1)); eauto;
+                match goal with
+                | h0 : (subty (TRcons i0 x0 y1) (TRcons i0 x1 y1)) |- _ =>
+                    eapply (st_trans )
         | h1 : subty ?y0 (TRcons ?i0 ?x1 ?y1) |-
             subty (TRcons ?i0 ?x0 ?y0) (TRcons ?i0 ?x1 ?y1) =>
+            assert (wf_ty y0); eauto;
+            assert (wf_ty x0); eauto;
+            assert (only_rcd y0); eauto;
                 assert (subty (TRcons i0 x0 y0) y0); eauto;
                 assert (subty y0 (TRcons i0 x1 y1)); eauto using st_trans
         | |- ~ _ =>
-            intro hh0; inver_all_useful;subty_remove_eq;
+            intro hh0; trcd_extrac_subty0; 
+            trcd_extrac_subty1;
+            inver_all_useful;
+            subty_remove_eq;
+            trcd_extrac_subty0;
+            trcd_extrac_subty1;
+            subst; eauto;
             construct_wf_ty_and_orcd;clear_dupli;subty_remove_eq;
             try subty_rec_contradict;
             try rcdty_rec_contradict;subst; eauto
@@ -993,7 +1059,7 @@ Theorem subty_dec_compl:
         | |- {_} + {_} =>
             try (
             right; split;eauto; general_process ; fail);
-            left; split; general_process; idtac 1; idtac 2; fail
+            left; split; general_process; idtac 1; idtac 2
         | |- _ + {_} =>
             try (
             right; split; eauto; general_process ; fail);
@@ -1013,8 +1079,10 @@ Theorem subty_dec_compl:
     destructALL;
     subty_remove_eq;
     try (generally'; fail).
+    snd; split.
+    general_process.
     
-    generally'.
+    
     left; split; general_process.
     
 
