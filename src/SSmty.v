@@ -104,11 +104,13 @@ Inductive subty  : ty -> ty -> Prop :=
             subty x x' ->
             subty y y' ->
             subty (TSum x y) (TSum x' y')
-| strcdd : forall i p1 p2 q,
-            wf_ty q ->
-            only_rcd q ->
+| strcdd : forall i p1 p2 q1 q2,
+            wf_ty q1 ->
+            only_rcd q1 ->
+            wf_ty q2 ->
+            only_rcd q2 ->
             subty p1 p2 ->
-            subty (TRcons i p1 q) (TRcons i p2 q)
+            subty (TRcons i p1 q1) (TRcons i p2 q1)
 | strcdw : forall i p q1 q2,
             wf_ty q1 ->
             only_rcd q1 ->
@@ -119,11 +121,7 @@ Inductive subty  : ty -> ty -> Prop :=
             subty (TRcons i p q1) q2
 | st_refl : forall t,
             wf_ty t ->
-            subty t t
-| st_trans : forall t0 t1 t2,
-            subty t0 t1 ->
-            subty t1 t2 ->
-            subty t0 t2.
+            subty t t.
 
     Hint Constructors subty.
 
@@ -793,18 +791,21 @@ Lemma subty_extrac_trcd1:
     poses' (IHh0_1 _ _ _ _ eq_refl _ _ eq_refl); destructALL; subst; eauto.
 Qed.
 
-Lemma subty_tran_cons0:
+Lemma subty_rcd_cons0:
     forall i p q1 q2,
         only_rcd q1 ->
-        only_rcd q2 ->
-        wf_ty p ->
         subty q1 q2 ->
+        only_rcd q2 ->
         subty (TRcons i p q1) (TRcons i p q2).
+    
     intros i p q1 q2 h0.
-    glize p i q2 0.
-    induction h0; eauto.
-    intros. poses' (subty_onlyrefl_tnone0 _ H1); subst; eauto.
+    glize i p q2 0.
+    induction h0; intros q2 pp ii h1 h2; subst;
+    try (inversion h1; inversion h2; subst; eauto; fail).
+    Focus 2.
     intros. 
+    
+
 
 Theorem subty_refl_eq:
     forall T1 T2,
@@ -820,11 +821,11 @@ Theorem subty_refl_eq:
     destruct (subty_extra_tsum _ _ _ _ H).
     rewrite IHh1; try rewrite IHh2; eauto.
     
-    inversion H1; subst; eauto. rewrite IHh; eauto.
-    destruct (type_not_rec_rcons1 _ _ _ H6).
-    rewrite IHh; eauto. eapply subty_extrac_trcd0; eauto.
+    poses'  (subty_extrac_trcd0 _ _ _ _ H1); eauto.
+    rewrite IHh; eauto.
 
-    destruct (subty_trcons_never_rec _ _ _ H0 H2).
+    assert (subty q1 (TRcons i p q1)); eauto.
+    destruct (subty_trcons_never_rec _ _ _ H0 H5).
     rewrite IHh1; eauto.
 Qed.
 
@@ -991,7 +992,7 @@ Theorem subty_dec_compl:
         | h0 : wf_ty (_ _) |- _ =>
             inversion h0; subst; eauto; glize h0 0
         | h1 : only_rcd (_ _) |- _ =>
-            inversion h1; subst; eauto; glize h1
+            inversion h1; subst; eauto; glize h1 0
         end; intros.
 
     Ltac clear_dupli :=
@@ -1004,50 +1005,62 @@ Theorem subty_dec_compl:
             clear h1
         end.
 
-    Ltac generally :=
-        try (
-        right; split;clear_dupli;
-        match goal with
-        | h0 : subty ?x0 ?y0, h1: subty ?x1 ?y1 |-
-            subty (TRcons ?i0 ?x0 ?x1) (TRcons ?i0 ?y0 ?y1) =>
-                assert (wf_ty x1); eauto;
-                assert (only_rcd x1); eauto;
-                assert (subty (TRcons i0 x0 y1) (TRcons i0 x1 y1)); eauto;
-                eauto using st_trans
-        | h1 : subty ?y0 (TRcons ?i0 ?x1 ?y1) |-
-            subty (TRcons ?i0 ?x0 ?y0) (TRcons ?i0 ?x1 ?y1) =>
-                assert (wf_ty y0); eauto;
-                assert (wf_ty x0); eauto;
-                assert (only_rcd y0); eauto;
-                assert (subty (TRcons i0 x0 y0) y0); eauto;
-                assert (subty y0 (TRcons i0 x1 y1)); eauto using st_trans
-        | |- ~ _ =>
-            intro hh0; inver_all_useful;subty_remove_eq;
-            construct_wf_ty_and_orcd;clear_dupli;subty_remove_eq;
-            try subty_rec_contradict;
-            try rcdty_rec_contradict;subst; eauto
-        end; fail);
-        left; generally; idtac 1; idtac 2.
 
-    Ltac general_process :=
-        construct_wf_ty_and_orcd;clear_dupli;
+
+    Ltac general_process:=
         match goal with
         | h0 : subty ?x0 ?y0, h1: subty ?x1 ?y1 |-
             subty (TRcons ?i0 ?x0 ?x1) (TRcons ?i0 ?y0 ?y1) =>
-            assert (wf_ty x1); eauto;
-            assert (only_rcd x1); eauto;
-                assert (subty (TRcons i0 x0 y1) (TRcons i0 x1 y1)); eauto;
-                assert (subty (TRcons i0 x0 x1) (TRcons i0 x0 y1)); eauto;
+            construct_wf_ty_and_orcd; clear_dupli;inver_all_useful;
+            clear_dupli;
+            assert (wf_ty x1); eauto 3; idtac 10;
+            assert (wf_ty x0); eauto 3; idtac 11;
+            assert (wf_ty y0); eauto 3; idtac 3;
+            assert (wf_ty y1); eauto 3; idtac 4;
+            assert (only_rcd x1); eauto 3;idtac 5;
+            assert (only_rcd y1); eauto 3; clear_dupli; idtac 6;
+                assert (subty (TRcons i0 x0 y1) (TRcons i0 x1 y1)); 
+                    try (
+                    match goal with
+                    | hhhh0 : wf_ty y1,
+                      hhhh1 : only_rcd y1 |- _ =>
+                        eapply strcdd _ _ _ _ hhhh0 hhhh1 h0
+                    end
+                    );
+                assert (subty (TRcons i0 x0 x1) (TRcons i0 x0 y1));  
+                try (
+                    match goal with
+                    | hhhh0 : wf_ty x1,
+                     hhhh1: wf_ty y1,
+                     hhhh2: wf_ty x0,
+                     hhhh3: only_rcd x1,
+                     hhhh4: only_rcd y1,
+                      hhhh1 : only_rcd y1 |- _ =>
+                        eapply strcdw _ _ _ _ hhhh0 hhhh1 h0
+                    end
+                    );
+                clear_dupli;
                 match goal with
-                | h0 : (subty (TRcons i0 x0 y1) (TRcons i0 x1 y1)) |- _ =>
-                    eapply (st_trans )
+                | hh0 : subty (TRcons i0 x0 y1) (TRcons i0 x1 y1),
+                    hh1 : subty (TRcons i0 x0 x1) (TRcons i0 x0 y1)
+                    |- _ =>
+                    apply (st_trans _ _ _ hh1 hh0)
+                end
         | h1 : subty ?y0 (TRcons ?i0 ?x1 ?y1) |-
             subty (TRcons ?i0 ?x0 ?y0) (TRcons ?i0 ?x1 ?y1) =>
-            assert (wf_ty y0); eauto;
-            assert (wf_ty x0); eauto;
-            assert (only_rcd y0); eauto;
-                assert (subty (TRcons i0 x0 y0) y0); eauto;
-                assert (subty y0 (TRcons i0 x1 y1)); eauto using st_trans
+            construct_wf_ty_and_orcd; clear_dupli;inver_all_useful;
+            clear_dupli;
+            assert (wf_ty y0); eauto 3; idtac 29;
+            assert (wf_ty x1); eauto 3; idtac 30;
+            assert (wf_ty y1); eauto 3; idtac 31;
+            assert (only_rcd y1); eauto 3; idtac 32;
+            assert (only_rcd y0); eauto 3;clear_dupli; idtac 33;
+                assert (subty (TRcons i0 x0 y0) y0); eauto 3; idtac 34;
+                clear_dupli;
+                match goal with
+                | hh0 : subty (TRcons i0 x0 y0) y0 |- _ =>            
+                    apply (st_trans _ _ _ hh0 h1)
+                end
         | |- ~ _ =>
             intro hh0; trcd_extrac_subty0; 
             trcd_extrac_subty1;
@@ -1055,22 +1068,25 @@ Theorem subty_dec_compl:
             subty_remove_eq;
             trcd_extrac_subty0;
             trcd_extrac_subty1;
-            subst; eauto;
+            subst; eauto 3;
             construct_wf_ty_and_orcd;clear_dupli;subty_remove_eq;
             try subty_rec_contradict;
-            try rcdty_rec_contradict;subst; eauto
+            try rcdty_rec_contradict;subst; eauto 3
         end.
-    Ltac generally' :=
+    Ltac generally':=
+        
         match goal with
         | |- {_} + {_} =>
+            idtac "a";
             try (
-            right; split;eauto; general_process ; fail);
-            left; split; general_process; idtac 1; idtac 2
+            right; split; general_process ; fail);
+            left; split; general_process
         | |- _ + {_} =>
+            idtac "b";
             try (
-            right; split; eauto; general_process ; fail);
-            left; generally'; idtac 1; idtac 2
-        | |- _ => idtac
+            right; split; general_process ; fail);
+            left; generally'
+        | |- _ => idtac "c"
         end.
 
     clear IHT2_1. clear IHT2_2.
@@ -1082,11 +1098,26 @@ Theorem subty_dec_compl:
     poses' (IHT1_2 T2_2);
     poses' (IHT1_2 (TRcons i0 T2_1 T2_2));
     subst; eauto;
-    destructALL;
-    subty_remove_eq;
-    try (generally'; fail).
-    snd; split.
-    general_process.
+    destructALL; 
+    try(generally' ;fail).
+    generally' 2.
+
+    
+    fst. split. 
+    general_process. general_process.
+    assert (wf_ty T2_2); eauto 3;
+    assert (only_rcd T2_2); eauto 3.
+    construct_wf_ty_and_orcd. inver_all_useful.
+    assert (subty (TRcons i0 T2_1 T1_2) (TRcons i0 T2_1 T1_2)); eauto;
+    assert (subty (TRcons i0 T2_1 T2_2) (TRcons i0 T2_1 T1_2)); eauto;
+    eapply st_trans; eauto. 
+    general_process.             
+    eauto using st_trans.
+    generally'.
+    try general_process.
+    try (generally';idtac 1; fail).
+
+    generally'.
     
     
     left; split; general_process.
