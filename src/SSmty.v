@@ -1092,6 +1092,7 @@ Theorem subty_dec_compl:
         construct_wf_ty_and_orcd;clear_dupli; inver_all_useful; clear_dupli;
         try contradiction); eauto; fail.
     
+    destruct (only_rcd_dec T2_2).
     destruct (eq_id_dec i i0).
     poses' (IHT1_1 T2_1);
     poses' (IHT1_2 T2_2);
@@ -1104,9 +1105,14 @@ Theorem subty_dec_compl:
     destructALL;
     try (generally'; fail).
     
-    idtac.
 
+    idtac.
     
+
+
+
+
+
 
 
 
