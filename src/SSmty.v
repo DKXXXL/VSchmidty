@@ -110,7 +110,8 @@ Inductive subty  : ty -> ty -> Prop :=
             wf_ty q2 ->
             only_rcd q2 ->
             subty p1 p2 ->
-            subty (TRcons i p1 q1) (TRcons i p2 q1)
+            subty q1 q2 ->
+            subty (TRcons i p1 q1) (TRcons i p2 q2)
 | strcdw : forall i p q1 q2,
             wf_ty q1 ->
             only_rcd q1 ->
@@ -121,8 +122,11 @@ Inductive subty  : ty -> ty -> Prop :=
             subty (TRcons i p q1) q2
 | st_refl : forall t,
             wf_ty t ->
-            subty t t.
-
+            subty t t
+| st_trans : forall t0 t1 t2,
+            subty t0 t1 ->
+            subty t1 t2 ->
+            subty t0 t2.
 
     Hint Constructors subty.
 
@@ -138,17 +142,6 @@ Inductive subty  : ty -> ty -> Prop :=
         | h0: _ + _ |- _ => destruct h0
         end
     ).
-    Ltac general_val_ X u v :=
-    match v with
-      | 0 => X;(generalize dependent u)
-      | _ => general_val_ ltac:(X; generalize dependent u) v
-    end.
-
-Ltac glize :=
-    general_val_ idtac.
-
-
-
 
 Axiom wf_ty_indistinct:
     forall T (t1 t2: wf_ty T),
@@ -570,6 +563,14 @@ Lemma subty_extra_tsum:
     split; eauto.
 Qed.
 
+Ltac general_val_ X u v :=
+    match v with
+      | 0 => X;(generalize dependent u)
+      | _ => general_val_ ltac:(X; generalize dependent u) v
+    end.
+
+Ltac glize :=
+    general_val_ idtac.
 
 Lemma subty_rcons_none0:
     forall T,
@@ -675,8 +676,11 @@ Theorem subty_struct_size_le:
     ); intros.
 
     inversion h1; inversion h2; subst; eauto.
-    repeat rewrite (struct_size_reduce _ _ _ H3).
-    auto.
+    repeat rewrite (struct_size_reduce _ _ _ H6).
+    repeat rewrite (struct_size_reduce _ _ _ H10).
+    poses' (IHsubty2 H10 H6).
+    omega.
+
 
     inversion h1; subst; eauto.
     repeat rewrite (struct_size_reduce _ _ _ H6).
@@ -795,20 +799,7 @@ Lemma subty_extrac_trcd1:
     poses' (IHh0_1 _ _ _ _ eq_refl _ _ eq_refl); destructALL; subst; eauto.
 Qed.
 
-Lemma subty_rcd_cons0:
-    forall i p q1 q2,
-        only_rcd q1 ->
-        subty q1 q2 ->
-        only_rcd q2 ->
-        subty (TRcons i p q1) (TRcons i p q2).
-    
-    intros i p q1 q2 h0.
-    glize i p q2 0.
-    induction h0; intros q2 pp ii h1 h2; subst;
-    try (inversion h1; inversion h2; subst; eauto; fail).
-    Focus 2.
-    intros. 
-    
+
 
 
 Theorem subty_refl_eq:
@@ -824,12 +815,15 @@ Theorem subty_refl_eq:
     (* case tsum*)
     destruct (subty_extra_tsum _ _ _ _ H).
     rewrite IHh1; try rewrite IHh2; eauto.
-    
-    poses'  (subty_extrac_trcd0 _ _ _ _ H1); eauto.
-    rewrite IHh; eauto.
 
-    assert (subty q1 (TRcons i p q1)); eauto.
-    destruct (subty_trcons_never_rec _ _ _ H0 H5).
+    poses' (subty_extrac_trcd1 _ _ _ _ _ _ H3); destructALL; subst; eauto.
+    rewrite IHh1; eauto. rewrite IHh2; eauto.
+    assert (subty q1 (TRcons i p1 q1)). eapply st_trans; eauto.
+    destruct (subty_trcons_never_rec _ _ _ H0 H5). 
+    
+    assert (subty q1 (TRcons i p q1)). eapply st_trans; eauto.
+    destruct (subty_trcons_never_rec _ _ _ H0 H5). 
+
     rewrite IHh1; eauto.
 Qed.
 
@@ -1027,6 +1021,7 @@ Theorem subty_dec_compl:
                     try (
                     match goal with
                     | hhhh0 : wf_ty y1,
+                    
                       hhhh1 : only_rcd y1 |- _ =>
                         eapply strcdd _ _ _ _ hhhh0 hhhh1 h0
                     end
