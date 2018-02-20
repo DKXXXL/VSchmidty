@@ -979,6 +979,7 @@ Theorem subty_dec_compl:
         | h0 : subty (TRcons ?i0 ?x0 ?y) (TRcons ?i0 ?x1 ?y) |- _ =>
             poses' (subty_extrac_trcd0 _ _ _ _ h0)
         end.
+        
     Ltac trcd_extrac_subty1 :=
         match goal with
         | h0 : subty (TRcons _ _ _) (TRcons _ _ _) |- _ =>
@@ -1075,7 +1076,7 @@ Theorem subty_dec_compl:
         | |- _ => idtac "c"
         end.
 
-    clear IHT2_1. clear IHT2_2.
+    
     destruct (only_rcd_dec T1_2).
     destruct (wf_ty_dec T1_1); destruct (wf_ty_dec T1_2);
     destruct (wf_ty_dec T2_1); destruct (wf_ty_dec T2_2).
@@ -1084,39 +1085,25 @@ Theorem subty_dec_compl:
     poses' (IHT1_2 T2_2);
     poses' (IHT1_2 (TRcons i0 T2_1 T2_2));
     subst; eauto;
+    glize IHT2_1 IHT2_2 0;
     destructALL; 
-    try(generally' ;fail).
-    snd. split; try general_process. 
-    intro hh0; trcd_extrac_subty0; 
-            trcd_extrac_subty1.
-            inver_all_useful
+    intros;
+    try(clear IHT2_1; clear IHT2_2; generally' ;fail).
+    
+    
+    destructALL;
+    try (generally'; fail).
+    intro hh0; 
+            try trcd_extrac_subty0; 
+            try trcd_extrac_subty1;
+            inver_all_useful;
             subty_remove_eq;
-            trcd_extrac_subty0;
-            trcd_extrac_subty1;
+            try trcd_extrac_subty0;
+            try trcd_extrac_subty1;
             subst; eauto;
             construct_wf_ty_and_orcd;clear_dupli;subty_remove_eq;
             try subty_rec_contradict;
-            try rcdty_rec_contradict;subst; eauto
-
-    
-    fst. split. 
-    general_process. general_process.
-    assert (wf_ty T2_2); eauto 3;
-    assert (only_rcd T2_2); eauto 3.
-    construct_wf_ty_and_orcd. inver_all_useful.
-    assert (subty (TRcons i0 T2_1 T1_2) (TRcons i0 T2_1 T1_2)); eauto;
-    assert (subty (TRcons i0 T2_1 T2_2) (TRcons i0 T2_1 T1_2)); eauto;
-    eapply st_trans; eauto. 
-    general_process.             
-    eauto using st_trans.
-    generally'.
-    try general_process.
-    try (generally';idtac 1; fail).
-
-    generally'.
-    
-    
-    left; split; general_process.
+            try rcdty_rec_contradict;subst; eauto.
     
 
 
