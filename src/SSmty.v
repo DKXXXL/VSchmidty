@@ -1101,15 +1101,18 @@ Theorem subty_dec_compl:
     glize IHT2_1 IHT2_2 0;
     destructALL; 
     intros;
-    try(clear IHT2_1; clear IHT2_2; generally' ;fail);
+    clear IHT2_1;
+    try( clear IHT2_2; generally' ;fail);
     destructALL;
     try (generally'; fail).
     
 
     idtac.
-    
-
-
+    (* case i <> i0 *)
+    poses' (IHT1_2 (TRcons i0 T2_1 T2_2));
+    clear IHT2_1;
+    destructALL;
+    try (generally'; fail).
 
 
 
