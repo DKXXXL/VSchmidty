@@ -1019,12 +1019,12 @@ Theorem subty_dec_compl:
             subty (TRcons ?i0 ?x0 ?x1) (TRcons ?i0 ?y0 ?y1) =>
             construct_wf_ty_and_orcd; clear_dupli;inver_all_useful;
             clear_dupli;
-            assert (wf_ty x1); eauto 3; idtac 10;
-            assert (wf_ty x0); eauto 3; idtac 11;
-            assert (wf_ty y0); eauto 3; idtac 3;
-            assert (wf_ty y1); eauto 3; idtac 4;
-            assert (only_rcd x1); eauto 3;idtac 5;
-            assert (only_rcd y1); eauto 3; clear_dupli; idtac 6;
+            assert (wf_ty x1); eauto 3; 
+            assert (wf_ty x0); eauto 3; 
+            assert (wf_ty y0); eauto 3; 
+            assert (wf_ty y1); eauto 3; 
+            assert (only_rcd x1); eauto 3;
+            assert (only_rcd y1); eauto 3; clear_dupli; 
             try (
                     match goal with
                     | hhhh0 : wf_ty x0,
@@ -1038,12 +1038,12 @@ Theorem subty_dec_compl:
             subty (TRcons ?i0 ?x0 ?y0) (TRcons ?i0 ?x1 ?y1) =>
             construct_wf_ty_and_orcd; clear_dupli;inver_all_useful;
             clear_dupli;
-            assert (wf_ty y0); eauto; idtac 29;
-            assert (wf_ty x0); eauto; idtac 30;
-            assert (wf_ty (TRcons i0 x1 y1)); eauto; idtac 31;
-            assert (only_rcd (TRcons i0 x1 y1)); eauto; idtac 32;
-            assert (only_rcd y0); eauto 3;clear_dupli; idtac 33;
-                assert (subty (TRcons i0 x0 y0) y0); eauto; idtac 34;
+            assert (wf_ty y0); eauto;
+            assert (wf_ty x0); eauto;
+            assert (wf_ty (TRcons i0 x1 y1)); eauto; 
+            assert (only_rcd (TRcons i0 x1 y1)); eauto; 
+            assert (only_rcd y0); eauto 3;clear_dupli;
+                assert (subty (TRcons i0 x0 y0) y0); eauto; 
                 clear_dupli;
                 match goal with
                 | hh0 : wf_ty y0,
@@ -1066,21 +1066,23 @@ Theorem subty_dec_compl:
             construct_wf_ty_and_orcd;clear_dupli;subty_remove_eq;
             try subty_rec_contradict;
             try rcdty_rec_contradict;subst; eauto; try contradiction; try discriminate
+        | |- subty (TRcons _ ?x0 ?y0) ?y0 =>
+            eapply strcdw; eauto
         end.
     Ltac generally':=
         
         match goal with
         | |- {_} + {_} =>
-            idtac "a";
+            idtac "Case: Guess The last one";
             try (
             right; split; general_process ; fail);
             left; split; general_process
         | |- _ + {_} =>
-            idtac "b";
+            idtac "Case : Guessing";
             try (
             right; split; general_process ; fail);
             left; generally'
-        | |- _ => idtac "c"
+        | |- _ => idtac "Guessed Failed..."
         end.
 
     
@@ -1120,23 +1122,10 @@ Theorem subty_dec_compl:
     clear IHT2_1;
     destructALL;
     try (generally'; fail);
-    
     subty_remove_eq;
-    try (fst; snd; split; try general_process; try (eapply strcdw; eauto); fail);
-    try (snd; snd; split; try general_process; try (eapply strcdw; eauto); fail);
-    try (trd; snd; split; try general_process; try (eapply strcdw; eauto); fail);
-    try (fth; snd; split; try general_process; try (eapply strcdw; eauto); fail).
-    
-    
-    
- 
-   
+    try (generally'; fail).
 
-
-    destruct (T2_2_rec _ _ _ _ _ H0).
     snd; split; try general_process. eapply strcdw; eauto.
-    snd; split; try general_process. eapply strcdw; eauto.
-    trd; split; try general_process. eapply strcdw; eauto.
     trd; split; try general_process. eapply strcdw; eauto.
     (* case only_rcd failed*)
     clear IHT2_1 IHT2_2;
