@@ -1472,18 +1472,12 @@ Lemma preservation_on_subst0:
         intros i t T0 w body.
         glize i t T0 0.
         poses' empty_typed_ctx_typed.
-        induction body; intros; subst; eauto.
-        inversion H1; subst; eauto; cbn.
-        match goal with
-        | h0: has_type _ ?t0 ?T0 |- has_type _ ?t0 ?T0 =>
+        induction body; intros; subst; eauto;
+        inversion H1; subst; eauto.
 
+        
 
-        (*remember empty as ctx0.
-        remember (tfun i T0 w body) as f.
-        remember (TFun T0 T1) as Tf.
-        glize i t T0 body Heqctx0 T1 0.
-        induction h1; intros; subst; eauto; try discriminate.
-        *)
+        Focus 3. .
 
 
 
