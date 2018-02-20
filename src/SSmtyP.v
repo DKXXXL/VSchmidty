@@ -1270,6 +1270,13 @@ Theorem has_type_dec :
             end
         ).
 
+        Ltac try_inversion :=
+        repeat (
+            match goal with
+            | h0 : ?x = ?y |- _ =>
+                inversion h0; subst; eauto; glize h0 0
+            end
+        ); intros.
         Ltac either_left_or_right :=
         subst; eauto;
         try
@@ -1384,7 +1391,8 @@ Theorem has_type_dec :
     right; intros; intro h; inversion h; subst; eauto.
     eapply n; eauto. erewrite (wf_ty_indistinct _ w h1). eauto.
 
-    (* case *)
+    (* case tapp *)
+    
     apply_ctx_to_all ctx. 
     if_impossible.
     destruct x; 
@@ -1392,8 +1400,63 @@ Theorem has_type_dec :
         right; intros TT; intro hh; inversion hh; subst; eli_dupli_type; eauto; try contradiction;
         try discriminate; fail
     );subst.
-    destruct (eq_ty_dec x1 x0); subst.
-    left; eexists x2; eauto. eapply ht_app; eauto. 
+    destruct (subty_dec x0 x1); subst.
+    left; eexists x2; eauto. 
+    right; intros T hh0; inversion hh0; subst;eli_dupli_type;subst; eauto.
+    inversion H0; subst ; eauto; try contradiction.
+
+    (* case tlet *)
+    destruct (IHt1 ctx); dALL; if_impossible.
+    destruct (eq_ty_dec x T);
+    destruct (IHt2 (update i (exist wf_ty _ w) ctx));dALL; 
+    subst; eauto; either_left_or_right; if_impossible.
+    right; intros; intro hhh; inversion hhh; subst; eauto.
+    rewrite (wf_ty_indistinct _ w h1) in *.
+    destruct (n _ H7).
+    
+
+    (* case tfix *)
+    destruct (IHt (update i (exist wf_ty _ w) ctx)); dALL; if_impossible.
+    destruct (eq_ty_dec x T); subst; eauto; either_left_or_right.
+    right; intros; intro hhh; inversion hhh; subst; eauto.
+    rewrite (wf_ty_indistinct _ h1 w) in *.
+    eli_dupli_type; eauto.
+    right; intros; intro hhh; inversion hhh; subst; eauto.
+    rewrite (wf_ty_indistinct _ w h0) in *.
+    destruct (n _ H5).
+
+    (* case tcase *)
+    destruct (IHt1 ctx);
+    destruct (IHt2 ctx);
+    destruct (IHt3 ctx); dALL; if_impossible.
+    destruct x1;
+    destruct x0; destruct x;
+    try(
+        right; intros TT; intro hh; inversion hh; subst; eli_dupli_type; eauto; try contradiction;
+        try discriminate; fail
+    );subst.
+    destruct (eq_ty_dec x1_1 x0_1);
+    destruct (eq_ty_dec x1_2 x1);
+    destruct (eq_ty_dec x0_2 x2);
+    subst; eauto; if_impossible;
+    right; intros; intro hh; 
+    inversion hh; subst; eli_dupli_type; try_inversion;subst; eauto; try contradiction.
+
+    (* case tfield *)
+    remember (rcd_field_ty T o w i) as U.
+    destruct U; eauto; either_left_or_right; if_impossible.
+    right; intros; intro hh; inversion hh;  subst; eauto; try discriminate.
+    rewrite (orcd_indistinct _ o h2) in *.
+    rewrite (wf_ty_indistinct _ w h3) in *.
+    rewrite H5 in *.
+    try discriminate.
+Qed.
+
+    
+    
+
+    
+    
 
 
 
