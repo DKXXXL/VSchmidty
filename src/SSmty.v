@@ -989,9 +989,9 @@ Theorem subty_dec_compl:
     Ltac inver_all_useful :=
         repeat match goal with
         | h0 : wf_ty (_ _) |- _ =>
-            inversion h0; subst; eauto; glize h0 0
+            inversion h0; subst;  glize h0 0
         | h1 : only_rcd (_ _) |- _ =>
-            inversion h1; subst; eauto; glize h1 0
+            inversion h1; subst;  glize h1 0
         end; intros.
 
     Ltac clear_dupli :=
@@ -1079,7 +1079,19 @@ Theorem subty_dec_compl:
     
     destruct (only_rcd_dec T1_2).
     destruct (wf_ty_dec T1_1); destruct (wf_ty_dec T1_2);
-    destruct (wf_ty_dec T2_1); destruct (wf_ty_dec T2_2).
+    destruct (wf_ty_dec T2_1); destruct (wf_ty_dec T2_2);
+    try (
+        try clear IHT2_1 IHT2_2;
+        try (fth; split; intro hh;
+        construct_wf_ty_and_orcd;clear_dupli; inver_all_useful; clear_dupli;
+        try contradiction); eauto; fail
+    ).
+    Focus 2. 
+    try clear IHT2_1 IHT2_2;
+        try (fth; split; intro hh;
+        construct_wf_ty_and_orcd;clear_dupli; inver_all_useful; clear_dupli;
+        try contradiction); eauto; fail.
+    
     destruct (eq_id_dec i i0).
     poses' (IHT1_1 T2_1);
     poses' (IHT1_2 T2_2);
@@ -1088,23 +1100,11 @@ Theorem subty_dec_compl:
     glize IHT2_1 IHT2_2 0;
     destructALL; 
     intros;
-    try(clear IHT2_1; clear IHT2_2; generally' ;fail).
-    
-    
+    try(clear IHT2_1; clear IHT2_2; generally' ;fail);
     destructALL;
     try (generally'; fail).
-    intro hh0; 
-            try trcd_extrac_subty0; 
-            try trcd_extrac_subty1;
-            inver_all_useful;
-            subty_remove_eq;
-            try trcd_extrac_subty0;
-            try trcd_extrac_subty1;
-            subst; eauto;
-            construct_wf_ty_and_orcd;clear_dupli;subty_remove_eq;
-            try subty_rec_contradict;
-            try rcdty_rec_contradict;subst; eauto.
     
+    idtac.
 
 
 
