@@ -1106,7 +1106,7 @@ Theorem subty_dec_compl:
     
     idtac.
 
-
+    
 
 
 
