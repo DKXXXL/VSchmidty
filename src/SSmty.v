@@ -1065,7 +1065,7 @@ Theorem subty_dec_compl:
             try subty_rec_contradict;
             try rcdty_rec_contradict;subst; eauto; try contradiction; try discriminate
         | |- subty (TRcons _ ?x0 ?y0) ?y0 =>
-            eapply strcdw; eauto
+            eapply strcdw; eauto 3
         end.
     Ltac generally':=
         
