@@ -123,6 +123,7 @@ Inductive subty  : ty -> ty -> Prop :=
             wf_ty t ->
             subty t t.
 
+
     Hint Constructors subty.
 
     Ltac destructALL :=
@@ -137,6 +138,17 @@ Inductive subty  : ty -> ty -> Prop :=
         | h0: _ + _ |- _ => destruct h0
         end
     ).
+    Ltac general_val_ X u v :=
+    match v with
+      | 0 => X;(generalize dependent u)
+      | _ => general_val_ ltac:(X; generalize dependent u) v
+    end.
+
+Ltac glize :=
+    general_val_ idtac.
+
+
+
 
 Axiom wf_ty_indistinct:
     forall T (t1 t2: wf_ty T),
@@ -558,14 +570,6 @@ Lemma subty_extra_tsum:
     split; eauto.
 Qed.
 
-Ltac general_val_ X u v :=
-    match v with
-      | 0 => X;(generalize dependent u)
-      | _ => general_val_ ltac:(X; generalize dependent u) v
-    end.
-
-Ltac glize :=
-    general_val_ idtac.
 
 Lemma subty_rcons_none0:
     forall T,
