@@ -1017,60 +1017,47 @@ Theorem subty_dec_compl:
             assert (wf_ty y1); eauto 3; idtac 4;
             assert (only_rcd x1); eauto 3;idtac 5;
             assert (only_rcd y1); eauto 3; clear_dupli; idtac 6;
-                assert (subty (TRcons i0 x0 y1) (TRcons i0 x1 y1)); 
-                    try (
+            try (
                     match goal with
-                    | hhhh0 : wf_ty y1,
-                    
-                      hhhh1 : only_rcd y1 |- _ =>
-                        eapply strcdd _ _ _ _ hhhh0 hhhh1 h0
+                    | hhhh0 : wf_ty x0,
+                      hhhh1 : only_rcd x0,
+                      hhhh2 : wf_ty x1,
+                      hhhh3 : only_rcd x1  |- _ =>
+                        eapply (strcdd _ _ _ _ hhhh0 hhhh1 hhhh2 h0 h1)
                     end
-                    );
-                assert (subty (TRcons i0 x0 x1) (TRcons i0 x0 y1));  
-                try (
-                    match goal with
-                    | hhhh0 : wf_ty x1,
-                     hhhh1: wf_ty y1,
-                     hhhh2: wf_ty x0,
-                     hhhh3: only_rcd x1,
-                     hhhh4: only_rcd y1,
-                      hhhh1 : only_rcd y1 |- _ =>
-                        eapply strcdw _ _ _ _ hhhh0 hhhh1 h0
-                    end
-                    );
-                clear_dupli;
-                match goal with
-                | hh0 : subty (TRcons i0 x0 y1) (TRcons i0 x1 y1),
-                    hh1 : subty (TRcons i0 x0 x1) (TRcons i0 x0 y1)
-                    |- _ =>
-                    apply (st_trans _ _ _ hh1 hh0)
-                end
+                    )
         | h1 : subty ?y0 (TRcons ?i0 ?x1 ?y1) |-
             subty (TRcons ?i0 ?x0 ?y0) (TRcons ?i0 ?x1 ?y1) =>
             construct_wf_ty_and_orcd; clear_dupli;inver_all_useful;
             clear_dupli;
-            assert (wf_ty y0); eauto 3; idtac 29;
-            assert (wf_ty x1); eauto 3; idtac 30;
-            assert (wf_ty y1); eauto 3; idtac 31;
-            assert (only_rcd y1); eauto 3; idtac 32;
+            assert (wf_ty y0); eauto; idtac 29;
+            assert (wf_ty x0); eauto; idtac 30;
+            assert (wf_ty (TRcons i0 x1 y1)); eauto; idtac 31;
+            assert (only_rcd (TRcons i0 x1 y1)); eauto; idtac 32;
             assert (only_rcd y0); eauto 3;clear_dupli; idtac 33;
-                assert (subty (TRcons i0 x0 y0) y0); eauto 3; idtac 34;
+                assert (subty (TRcons i0 x0 y0) y0); eauto; idtac 34;
                 clear_dupli;
                 match goal with
-                | hh0 : subty (TRcons i0 x0 y0) y0 |- _ =>            
-                    apply (st_trans _ _ _ hh0 h1)
+                | hh0 : wf_ty y0,
+                  hh1 : only_rcd y0,
+                  hh2 : wf_ty (TRcons i0 x1 y1),
+                  hh3 : only_rcd (TRcons i0 x1 y1),
+                  hh4 : wf_ty x0
+                    |- _ =>            
+                    eapply (strcdw _ _ _ _ hh0 hh1 hh2 hh3 h1 hh4)
                 end
         | |- ~ _ =>
-            intro hh0; trcd_extrac_subty0; 
-            trcd_extrac_subty1;
+            intro hh0; 
+            try trcd_extrac_subty0; 
+            try trcd_extrac_subty1;
             inver_all_useful;
             subty_remove_eq;
-            trcd_extrac_subty0;
-            trcd_extrac_subty1;
-            subst; eauto 3;
+            try trcd_extrac_subty0;
+            try trcd_extrac_subty1;
+            subst; eauto;
             construct_wf_ty_and_orcd;clear_dupli;subty_remove_eq;
             try subty_rec_contradict;
-            try rcdty_rec_contradict;subst; eauto 3
+            try rcdty_rec_contradict;subst; eauto
         end.
     Ltac generally':=
         
@@ -1099,7 +1086,17 @@ Theorem subty_dec_compl:
     subst; eauto;
     destructALL; 
     try(generally' ;fail).
-    generally' 2.
+    snd. split; try general_process. 
+    intro hh0; trcd_extrac_subty0; 
+            trcd_extrac_subty1.
+            inver_all_useful
+            subty_remove_eq;
+            trcd_extrac_subty0;
+            trcd_extrac_subty1;
+            subst; eauto;
+            construct_wf_ty_and_orcd;clear_dupli;subty_remove_eq;
+            try subty_rec_contradict;
+            try rcdty_rec_contradict;subst; eauto
 
     
     fst. split. 
