@@ -644,8 +644,6 @@ Definition struct_size :
     apply (S H).
 Defined.
 
-Print struct_size.
-
 Lemma struct_size_reduce:
     forall i0 T1 T2 (h0: only_rcd T2) (h1: only_rcd (TRcons i0 T1 T2)),
         struct_size (TRcons i0 T1 T2) h1 = S (struct_size T2 h0).
