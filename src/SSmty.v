@@ -799,7 +799,14 @@ Lemma subty_extrac_trcd1:
     poses' (IHh0_1 _ _ _ _ eq_refl _ _ eq_refl); destructALL; subst; eauto.
 Qed.
 
-
+Lemma T2_2_rec:
+forall T1 T2 T3 i j,
+    T1 <> TRcons i T2 (TRcons j T3 T1).
+intros T1;
+induction T1; intros; subst; eauto; try discriminate.
+intro. inversion H; subst; eauto.
+destruct (IHT1_2 _ _ _ _ H3).
+Qed.
 
 
 Theorem subty_refl_eq:
@@ -1058,7 +1065,7 @@ Theorem subty_dec_compl:
             subst; eauto;
             construct_wf_ty_and_orcd;clear_dupli;subty_remove_eq;
             try subty_rec_contradict;
-            try rcdty_rec_contradict;subst; eauto
+            try rcdty_rec_contradict;subst; eauto; try contradiction; try discriminate
         end.
     Ltac generally':=
         
@@ -1112,10 +1119,29 @@ Theorem subty_dec_compl:
     poses' (IHT1_2 (TRcons i0 T2_1 T2_2));
     clear IHT2_1;
     destructALL;
-    try (generally'; fail).
+    try (generally'; fail);
+    
+    subty_remove_eq;
+    try (fst; snd; split; try general_process; try (eapply strcdw; eauto); fail);
+    try (snd; snd; split; try general_process; try (eapply strcdw; eauto); fail);
+    try (trd; snd; split; try general_process; try (eapply strcdw; eauto); fail);
+    try (fth; snd; split; try general_process; try (eapply strcdw; eauto); fail).
+    
+    
+    
+ 
+   
 
 
-
+    destruct (T2_2_rec _ _ _ _ _ H0).
+    snd; split; try general_process. eapply strcdw; eauto.
+    snd; split; try general_process. eapply strcdw; eauto.
+    trd; split; try general_process. eapply strcdw; eauto.
+    trd; split; try general_process. eapply strcdw; eauto.
+    (* case only_rcd failed*)
+    clear IHT2_1 IHT2_2;
+    fth; split; intro h; construct_wf_ty_and_orcd;clear_dupli; inver_all_useful; eauto.
+Qed.
 
 
 
