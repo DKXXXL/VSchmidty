@@ -1130,7 +1130,15 @@ Theorem subty_dec_compl:
     fth; split; intro h; construct_wf_ty_and_orcd;clear_dupli; inver_all_useful; eauto.
 Qed.
 
-
+Theorem subty_dec:
+    forall T1 T2,
+        {subty T1 T2} + {~subty T1 T2}.
+    
+    intros.
+    destruct (subty_dec_compl T1 T2); destructALL;
+    try (left; eauto; fail);
+    try (right; eauto).
+Qed.
 
 
 
