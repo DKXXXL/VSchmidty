@@ -237,108 +237,36 @@ Inductive value : tm -> Prop :=
 Hint Constructors value.
 
 (* subst (i:id) (rep: tm) (org: tm) : tm *)
-Definition subst : id -> tm -> tm -> tm.
-intros i rep org. remember org as org'.
-generalize dependent i. generalize dependent org'. 
-induction org; intros;
-    match goal with
-    | E : eq _ (?P ?X1 ?X2 ?X3 ?X4 ?X5 ?X6) |- _ =>
-        match goal with
-        | 
-        i: id, 
-        h0 : forall x:_, eq _ ?X1 -> _, 
-        h1 : forall x:_, eq _ ?X2 -> _, 
-        h2 : forall x:_, eq _ ?X3 -> _,
-        h3 : forall x:_, eq _ ?X4 -> _, 
-        h4 : forall x:_, eq _ ?X5 -> _,
-        h5 : forall x:_, eq _ ?X6 -> _  |- _=> 
-            try apply (P (h0 X1 eq_refl i) (h1 X2 eq_refl i) (h2 X3 eq_refl i) (h3 X4 eq_refl i) (h4 X5 eq_refl i) (h5 X6 eq_refl i))
-        | _ => idtac
-        end
-    | E : eq _ (?P ?X1 ?X2 ?X3 ?X4 ?X5) |- _ =>
-        match goal with
-        | 
-        i: id, 
-        h0 : forall x:_, eq _ ?X1 -> _, 
-        h1 : forall x:_, eq _ ?X2 -> _, 
-        h2 : forall x:_, eq _ ?X3 -> _,
-        h3 : forall x:_, eq _ ?X4 -> _, 
-        h4 : forall x:_, eq _ ?X5 -> _  |- _=> 
-            try apply (P (h0 X1 eq_refl i) (h1 X2 eq_refl i) (h2 X3 eq_refl i) (h3 X4 eq_refl i) (h4 X5 eq_refl i))
-        | _ => idtac
-        end
-    | E : eq _ (?P ?X1 ?X2 ?X3 ?X4) |- _ =>
-        match goal with
-        | 
-        i: id, 
-        h0 : forall x:_, eq _ ?X1 -> _, 
-        h1 : forall x:_, eq _ ?X2 -> _, 
-        h2 : forall x:_, eq _ ?X3 -> _,
-        h3 : forall x:_, eq _ ?X4 -> _|- _=> 
-            try apply (P (h0 X1 eq_refl i) (h1 X2 eq_refl i) (h2 X3 eq_refl i) (h3 X4 eq_refl i))
-        | _ => idtac
-        end
-    | E : eq _ (?P ?X1 ?X2 ?X3) |- _ =>
-        match goal with
-        | 
-        i: id, 
-        h0 : forall x:_, eq _ ?X1 -> _, 
-        h1 : forall x:_, eq _ ?X2 -> _, 
-        h2 : forall x:_, eq _ ?X3 -> _|- _=> 
-            try apply (P (h0 X1 eq_refl i) (h1 X2 eq_refl i) (h2 X3 eq_refl i))
-        | _ => idtac 
-        end
-    | E : eq _ (?P ?X1 ?X2) |- _ =>
-        match goal with
-        | 
-        i: id, 
-        h0 : forall x:_, eq _ ?X1 -> _, 
-        h1 : forall x:_, eq _ ?X2 -> _|- _=> 
-            try apply (P (h0 X1 eq_refl i) (h1 X2 eq_refl i))
-        | _ => idtac
-        end
-    | E : eq _ (?P ?X1) |- _ =>
-        match goal with
-        |
-        i: id, 
-        h0 : forall x:_, eq _ ?X1 -> _|- _=> 
-            try apply (P (h0 X1 eq_refl i))
-        | _ => idtac
-        end
-    | E: eq _ (?P) |- _ =>
-        apply org'
-    | _  => idtac
+Fixpoint subst (i : id) (rep : tm) (org : tm) : tm :=
+    let rp' := subst i rep
+    in
+    match org with
+    | tnone => tnone
+    | trcons i t0 t1 => trcons i (rp' t0) (rp' t1)
+    | tif t0 t1 t2 => tif (rp' t0) (rp' t1) (rp' t2)
+    | tvar i0 => if (eq_id_dec i i0) then rep else org
+    | tsuc k => tsuc (rp' k)
+    | tdec k => tdec (rp' k)
+    | tngt p q => tngt (rp' p) (rp' q)
+    | tnlt p q => tnlt (rp' p) (rp' q)
+    | tneq p q => tneq (rp' p) (rp' q)
+    | tceq p q => tceq (rp' p) (rp' q)
+    | tfun i0 T w body =>
+        if (eq_id_dec i i0) then org else tfun i T w (rp' body)
+    | tapp p q => tapp (rp' p) (rp' q)
+    | tlet i0 T w bind body =>
+        if (eq_id_dec i i0) then tlet i T w (rp' bind) body else tlet i T w (rp' bind) (rp' body)
+    | tfix i0 T w body =>
+        if (eq_id_dec i i0) then org else tfix i T w (rp' body)
+    | tbeq p q => tbeq (rp' p) (rp' q)
+    | tleft l R w => tleft (rp' l) R w
+    | tright L w r => tright L w (rp' r)
+    | tcase a b c => tcase (rp' a) (rp' b) (rp' c)
+    | tseq a b => tseq (rp' a) (rp' b)
+    | _ => org
     end.
 
-    (* trcons *)
-    apply (trcons i (IHorg1 _ eq_refl i0) (IHorg2 _ eq_refl i0)).
-    (* tvar *)
-    destruct (eq_id_dec i i0). 
-    apply rep.
-    apply org'.
-    (* tint *)
-    apply org'.
-    (* tchr *)
-    apply org'.
-    (* tfun *)
-    destruct (eq_id_dec i i0).
-    apply org'.
-    apply (tfun i T w (IHorg _ eq_refl i0)).
-    (* tlet *)
-    destruct (eq_id_dec i i0).
-    apply (tlet i T w (IHorg1 _ eq_refl i0) org2).
-    apply (tlet i T w (IHorg1 _ eq_refl i0) (IHorg2 _ eq_refl i0)).
-    (* tfix(app) *)
-    destruct (eq_id_dec i i0).
-    apply org'.
-    apply (tfix i T w (IHorg _ eq_refl i0)).
-    (* tleft *)
-    apply (tleft (IHorg _ eq_refl i) T w).
-    (* tright *)
-    apply (tright T w (IHorg _ eq_refl i)).
-    (* tfield *)
-    apply org'.
-Defined.
+
 
 
 Open Scope Int_scope.
