@@ -56,6 +56,7 @@ apply (IHh T' eq_refl field).
 inversion h'; subst; eauto.
 Defined.
 
+
 Theorem rcd_field_ty_well_formed:
     forall rcd h h' i T,
         rcd_field_ty rcd h h' i = Some T->
@@ -1498,6 +1499,88 @@ Qed.
     
 *)
 
+
+
+Lemma preservation_on_subst1:
+    forall i t T0 T0' w body  ctx T1,
+        has_type empty t T0 ->
+        has_type ctx (tfun i T0' w body) (TFun T0' T1) ->
+        subty T0 T0' ->
+        has_type ctx (subst i t body) T1.
+
+        intros i t T0 T0' w body.
+        glize i t T0 T0' 0.
+        pose empty_typed_ctx_typed as H.
+        induction body; intros; subst; eauto; cbn in *;
+        (* Try all things *)
+        try (
+            match goal with
+            | h0 : has_type _ (_ _) _ |- _ =>
+                inversion h0; subst; eauto 10
+            end
+        );
+
+        try(
+            match goal with
+            | h0 : has_type ?ctx0 ?t0 ?T0 |- has_type _ ?t0 ?T0 => 
+                poses' (empty_typed_ctx_typed _ _ (ht_none empty) ctx0);
+                poses' (empty_typed_ctx_typed _ _ (ht_true empty) ctx0);
+                poses' (empty_typed_ctx_typed _ _ (ht_false empty) ctx0); 
+                eli_dupli_type; subst
+            end;
+            eauto;
+            fail
+        );
+        try (
+            
+            match goal with
+            | h0 : has_type (update _ _ _) (_ _) _ |- _ =>
+                inversion h0; subst; eauto;
+                eauto 10
+            end;
+            fail
+        );
+        eli_dupli_wf_ty_orcd.
+
+        
+        (* case tvar *)
+        inversion H5; subst; eauto.
+        cbn in H6. destruct (eq_id_dec i0 i); subst; eauto.
+        rewrite (eq_id_dec_id) in H6. inversion H6; subst; eauto.
+        eappl
+        rewrite (eq_id_dec_dif1) in H6; inversion H5; eauto. 
+
+        (* case tfun *)
+        inversion H4; subst; eauto.
+        cbn in *. destruct (eq_id_dec i0 i); subst; eauto; eli_dupli_wf_ty_orcd; eauto;
+        eapply ht_fun. eapply ctx_eq_rewrite; eauto.
+        
+        eapply IHbody; eauto.
+        eapply ht_fun; eauto.
+        eapply ctx_eq_rewrite; eauto.
+        
+        (* case tlet *)
+        inversion H4; subst; eauto.
+        destruct (eq_id_dec i0 i); subst; eauto;eli_dupli_wf_ty_orcd;
+        eapply ht_let.
+        eapply IHbody1; eauto.
+        eapply ctx_eq_rewrite ;eauto.
+        eapply IHbody1; eauto.
+        eapply IHbody2; eauto. eapply ht_fun; eauto.
+        eapply ctx_eq_rewrite; eauto.
+
+        (* case tfix *)
+        inversion H4; subst; eauto.
+        destruct (eq_id_dec i0 i); subst; eauto; eli_dupli_wf_ty_orcd;
+        eapply ht_fix.
+        eapply ctx_eq_rewrite; eauto.
+        eapply IHbody; eauto. eapply ht_fun; eauto.
+        eapply ctx_eq_rewrite ; eauto.
+
+        (* case tfield *)
+        inversion H4; subst; eli_dupli_wf_ty_orcd; eauto.
+Qed.
+            
 
 
 Theorem preservation:
