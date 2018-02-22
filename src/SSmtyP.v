@@ -252,12 +252,12 @@ Fixpoint subst (i : id) (rep : tm) (org : tm) : tm :=
     | tneq p q => tneq (rp' p) (rp' q)
     | tceq p q => tceq (rp' p) (rp' q)
     | tfun i0 T w body =>
-        if (eq_id_dec i i0) then org else tfun i T w (rp' body)
+        if (eq_id_dec i i0) then org else tfun i0 T w (rp' body)
     | tapp p q => tapp (rp' p) (rp' q)
     | tlet i0 T w bind body =>
-        if (eq_id_dec i i0) then tlet i T w (rp' bind) body else tlet i T w (rp' bind) (rp' body)
+        if (eq_id_dec i i0) then tlet i0 T w (rp' bind) body else tlet i0 T w (rp' bind) (rp' body)
     | tfix i0 T w body =>
-        if (eq_id_dec i i0) then org else tfix i T w (rp' body)
+        if (eq_id_dec i i0) then org else tfix i0 T w (rp' body)
     | tbeq p q => tbeq (rp' p) (rp' q)
     | tleft l R w => tleft (rp' l) R w
     | tright L w r => tright L w (rp' r)
@@ -457,7 +457,24 @@ Inductive step : tm -> tm -> Prop :=
     Hint Constructors step.
 
 
+Ltac eli_dupli_wf_ty :=
+    repeat (
+        match goal with
+        | w1 : wf_ty ?t, w2 : wf_ty ?t |- _ =>
+            poses' (wf_ty_indistinct t w1 w2);
+            subst
+        end
+    ).
+Ltac eli_dupli_orcd :=
+    repeat (
+        match goal with
+        | w1 : only_rcd ?t, w2 : only_rcd ?t |- _ =>
+            poses' (orcd_indistinct t w1 w2);
+            subst
+        end
+    ).
 
+Ltac eli_dupli_wf_ty_orcd := eli_dupli_wf_ty; eli_dupli_orcd.
 
 
 Lemma value_no_step :
@@ -548,28 +565,11 @@ Theorem step_deterministic:
     end;
     try tac_value_no_step; 
     fail
+    );
+    try (
+        eli_dupli_wf_ty_orcd; eauto
     ).
 
-    (* tlet, wf_ty difference *)
-    erewrite (wf_ty_indistinct T w w1); eauto.
-    (* tfix, wf_ty difference *)
-    erewrite (wf_ty_indistinct T w w1); eauto.
-
-    (* tbeq, contradiction *)
-    (* tleft, wf_ty difference *)
-    erewrite (wf_ty_indistinct w R R1); eauto.
-    (* tright, wf_ty difference *)
-    erewrite (wf_ty_indistinct w L L1); eauto.
-
-(*
-    (* tcase , wf_ty orcd difference*)
-    erewrite (wf_ty_indistinct LT w0 w5); eauto.
-
-    (* tcase , wf_ty orcd difference*)
-    erewrite (wf_ty_indistinct RT w1 w5); eauto.*)
-    (*tfield, wf_ty orcd difference*)
-    erewrite (orcd_indistinct T orcd orcd1); eauto.
-    erewrite (wf_ty_indistinct T w w1); eauto.
 Qed.
 
 
@@ -1161,6 +1161,18 @@ Theorem typed_relative_closed:
     intros. destruct (H _ H0).
 Qed.
 
+Theorem ctx_eq_rewrite:
+    forall U V t T,
+        has_type U t T ->
+        CtxEq U V ->
+        has_type V t T.
+    intros U V t T h0;
+    glize V 0.
+    induction h0; subst; eauto.
+    intros. poses' (CtxEq_byCtxEq _ _ H0).
+    eapply ht_var. rewrite <- H1. eauto.
+Qed.
+
 
 Lemma empty_typed_ctx_typed:
     forall t T,
@@ -1358,7 +1370,16 @@ Theorem has_type_dec :
     destruct (IHt2 ctx);
     destruct (IHt3 ctx); dALL; if_impossible.
     destruct x1;
-    destruct x0; destruct x;
+    try(
+        right; intros TT; intro hh; inversion hh; subst; eli_dupli_type; eauto; try contradiction;
+        try discriminate; fail
+    );subst;
+    destruct x0; 
+    try(
+        right; intros TT; intro hh; inversion hh; subst; eli_dupli_type; eauto; try contradiction;
+        try discriminate; fail
+    );subst;
+    destruct x;
     try(
         right; intros TT; intro hh; inversion hh; subst; eli_dupli_type; eauto; try contradiction;
         try discriminate; fail
@@ -1380,32 +1401,102 @@ Theorem has_type_dec :
     try discriminate.
 Qed.
 
-    
-    
 
-    
-    
-
-
-
-
-    
 
 Lemma preservation_on_subst0:
-    forall i t T0 w body T1,
+    forall i t T0 w body ctx T1,
         has_type empty t T0 ->
-        has_type empty (tfun i T0 w body) (TFun T0 T1) ->
-        has_type empty (subst i t body) T1.
+        has_type ctx (tfun i T0 w body) (TFun T0 T1) ->
+        has_type ctx (subst i t body) T1.
 
         intros i t T0 w body.
         glize i t T0 0.
-        poses' empty_typed_ctx_typed.
-        induction body; intros; subst; eauto;
-        inversion H1; subst; eauto.
+        pose empty_typed_ctx_typed as H.
+        induction body; intros; subst; eauto; cbn in *;
+        (* Try all things *)
+        try (
+            match goal with
+            | h0 : has_type _ (_ _) _ |- _ =>
+                inversion h0; subst; eauto 10
+            end
+        );
+
+        try(
+            match goal with
+            | h0 : has_type ?ctx0 ?t0 ?T0 |- has_type _ ?t0 ?T0 => 
+                poses' (empty_typed_ctx_typed _ _ (ht_none empty) ctx0);
+                poses' (empty_typed_ctx_typed _ _ (ht_true empty) ctx0);
+                poses' (empty_typed_ctx_typed _ _ (ht_false empty) ctx0); 
+                eli_dupli_type; subst
+            end;
+            eauto;
+            fail
+        );
+        try (
+            
+            match goal with
+            | h0 : has_type (update _ _ _) (_ _) _ |- _ =>
+                inversion h0; subst; eauto;
+                eauto 10
+            end;
+            fail
+        );
+        eli_dupli_wf_ty_orcd.
 
         
+        (* case tvar *)
+        inversion H4; subst; eauto.
+        cbn in H5. destruct (eq_id_dec i0 i); subst; eauto.
+        rewrite (eq_id_dec_id) in H5. inversion H5; subst; eauto.
+        rewrite (eq_id_dec_dif1) in H5; inversion H5; eauto. 
 
-        Focus 3. .
+        (* case tfun *)
+        inversion H4; subst; eauto.
+        cbn in *. destruct (eq_id_dec i0 i); subst; eauto; eli_dupli_wf_ty_orcd; eauto;
+        eapply ht_fun. eapply ctx_eq_rewrite; eauto.
+        
+        eapply IHbody; eauto.
+        eapply ht_fun; eauto.
+        eapply ctx_eq_rewrite; eauto.
+        
+        (* case tlet *)
+        inversion H4; subst; eauto.
+        destruct (eq_id_dec i0 i); subst; eauto;eli_dupli_wf_ty_orcd;
+        eapply ht_let.
+        eapply IHbody1; eauto.
+        eapply ctx_eq_rewrite ;eauto.
+        eapply IHbody1; eauto.
+        eapply IHbody2; eauto. eapply ht_fun; eauto.
+        eapply ctx_eq_rewrite; eauto.
+
+        (* case tfix *)
+        inversion H4; subst; eauto.
+        destruct (eq_id_dec i0 i); subst; eauto; eli_dupli_wf_ty_orcd;
+        eapply ht_fix.
+        eapply ctx_eq_rewrite; eauto.
+        eapply IHbody; eauto. eapply ht_fun; eauto.
+        eapply ctx_eq_rewrite ; eauto.
+
+        (* case tfield *)
+        inversion H4; subst; eli_dupli_wf_ty_orcd; eauto.
+Qed.
+            
+
+        
+(*Theorem steppable_has_type:
+    forall t t',
+        step t t' ->
+        (exists T, has_type empty t T).
+    intros t.
+    induction t;
+    intros; subst; try discriminate; try contradiction;
+    try (
+        match goal with
+        | h0 : step _ _ |- _ => inversion h0; subst; eauto
+        end
+    ).
+    
+*)
 
 
 
@@ -1476,7 +1567,25 @@ Theorem preservation:
             try (match goal with
             | H: step _ (if ?crit then _ else _) |- _ => destruct crit; subst; eauto; fail
             end); fail
-    end.
+    end;
+    eli_dupli_wf_ty_orcd.
+    inversion H0; subst; eauto.
+    eapply preservation_on_subst0; eauto.
+    Restart.
+
+    intros t t' T h h0.
+    glize T 0.
+    induction h0; intros; subst; eauto;
+    try (
+        match goal with
+        | h: has_type _ _ _ |- _ => inversion h; subst; eauto; try discriminate; try contradiction
+        end
+        ).
+    destruct (n2 <? n1)%Z; eauto. 
+    destruct (n1 <? n2)%Z; eauto.
+    destruct (n1 =? n2)%Z; eauto.
+    destruct (Nat.eqb n1 n2); eauto.
+    
     
 
 

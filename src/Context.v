@@ -173,7 +173,7 @@ Theorem CtxeqId:
     induction U; eauto.
 Qed.
 
-    
+Hint Resolve CtxeqId.
     
 
 End Context.
