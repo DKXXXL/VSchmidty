@@ -1536,7 +1536,7 @@ Lemma preservation_on_subst1:
         destruct (subty_wf _ _ H5). exact H11. eapply subty_rcd1; eauto.
         eauto. eauto. eapply ht_rcd; eauto. eapply subty_rcd1; eauto.
 
-        
+        inversion H1; subst; eauto.
         
 
         
