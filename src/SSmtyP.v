@@ -1499,95 +1499,55 @@ Qed.
     
 *)
 
-
-
+Axiom subty_rcd1:
+    forall T1 T2,
+        only_rcd T1 ->
+        subty T1 T2 ->
+        only_rcd T2.
 Lemma preservation_on_subst1:
     forall i t T0 T0' w body  ctx T1,
         has_type empty t T0 ->
-        has_type ctx (tfun i T0' w body) (TFun T0' T1) ->
+        has_type (update i (exist wf_ty T0' w) ctx) body T1 ->
         subty T0 T0' ->
-        has_type ctx (subst i t body) T1.
+        (exists T2, subty T1 T2 /\ has_type ctx (subst i t body) T2).
 
         intros i t T0 T0' w body.
         glize i t T0 T0' 0.
         pose empty_typed_ctx_typed as H.
         induction body; intros; subst; eauto; cbn in *;
-        (* Try all things *)
-        try (
-            match goal with
-            | h0 : has_type _ (_ _) _ |- _ =>
-                inversion h0; subst; eauto 10
-            end
-        );
-
         try(
             match goal with
-            | h0 : has_type ?ctx0 ?t0 ?T0 |- has_type _ ?t0 ?T0 => 
+            | h0 : has_type ?ctx0 ?t0 ?T0 |- exists _, _ /\ has_type _ ?t0 _ => 
+                exists T0;
                 poses' (empty_typed_ctx_typed _ _ (ht_none empty) ctx0);
                 poses' (empty_typed_ctx_typed _ _ (ht_true empty) ctx0);
                 poses' (empty_typed_ctx_typed _ _ (ht_false empty) ctx0); 
+                split; eauto;
                 eli_dupli_type; subst
             end;
-            eauto;
-            fail
-        );
-        try (
-            
-            match goal with
-            | h0 : has_type (update _ _ _) (_ _) _ |- _ =>
-                inversion h0; subst; eauto;
-                eauto 10
-            end;
-            fail
+            eauto; fail
         );
         eli_dupli_wf_ty_orcd.
+        inversion H1; subst; eauto.
+        destruct (IHbody1 _ _ _ _ _ _ _ H0 H7 H2); destructALL.
+        destruct (IHbody2 _ _ _ _ _ _ _ H0 H9 H2); destructALL.
+        eexists; split; eauto. eapply strcdd; auto.
+        destruct (subty_wf _ _ H5); auto.
+        destruct (subty_wf _ _ H5). exact H11. eapply subty_rcd1; eauto.
+        eauto. eauto. eapply ht_rcd; eauto. eapply subty_rcd1; eauto.
 
         
-        (* case tvar *)
-        inversion H5; subst; eauto.
-        cbn in H6. destruct (eq_id_dec i0 i); subst; eauto.
-        rewrite (eq_id_dec_id) in H6. inversion H6; subst; eauto.
-        eappl
-        rewrite (eq_id_dec_dif1) in H6; inversion H5; eauto. 
-
-        (* case tfun *)
-        inversion H4; subst; eauto.
-        cbn in *. destruct (eq_id_dec i0 i); subst; eauto; eli_dupli_wf_ty_orcd; eauto;
-        eapply ht_fun. eapply ctx_eq_rewrite; eauto.
         
-        eapply IHbody; eauto.
-        eapply ht_fun; eauto.
-        eapply ctx_eq_rewrite; eauto.
+
         
-        (* case tlet *)
-        inversion H4; subst; eauto.
-        destruct (eq_id_dec i0 i); subst; eauto;eli_dupli_wf_ty_orcd;
-        eapply ht_let.
-        eapply IHbody1; eauto.
-        eapply ctx_eq_rewrite ;eauto.
-        eapply IHbody1; eauto.
-        eapply IHbody2; eauto. eapply ht_fun; eauto.
-        eapply ctx_eq_rewrite; eauto.
-
-        (* case tfix *)
-        inversion H4; subst; eauto.
-        destruct (eq_id_dec i0 i); subst; eauto; eli_dupli_wf_ty_orcd;
-        eapply ht_fix.
-        eapply ctx_eq_rewrite; eauto.
-        eapply IHbody; eauto. eapply ht_fun; eauto.
-        eapply ctx_eq_rewrite ; eauto.
-
-        (* case tfield *)
-        inversion H4; subst; eli_dupli_wf_ty_orcd; eauto.
-Qed.
-            
 
 
-Theorem preservation:
+
+Theorem preservation':
     forall t t' T,
         has_type empty t T ->
         step t t' ->
-        has_type empty t' T.
+        (exists T', subty T T' /\ has_type empty t' T').
 
     intros t t' T h0.
     remember empty as ctx0.
@@ -1652,6 +1612,11 @@ Theorem preservation:
             end); fail
     end;
     eli_dupli_wf_ty_orcd.
+
+    Focus 9. inversion H0; subst; eauto.
+
+    inversion H0; subst; eauto. destruct (H1 _ H7). destructALL; eexists; split; eauto.
+    eapply 
     inversion H0; subst; eauto.
     eapply preservation_on_subst0; eauto.
     Restart.
