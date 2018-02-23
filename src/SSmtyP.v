@@ -45,27 +45,35 @@ Ltac glize :=
         end
     ).
 
+Fixpoint rcd_field_ty' (rcd: ty) (field : id) : option ty :=
+    match rcd with
+    | TRcons i head tail => if (eq_id_dec i field) then Some head else rcd_field_ty' tail field
+    | _ => None
+    end.
 
-Definition rcd_field_ty (rcd: ty) (h : only_rcd rcd) (h' : wf_ty rcd) (field : id) : option ty.
-remember rcd as r.
-generalize dependent h'. generalize dependent field. generalize dependent Heqr. generalize dependent rcd.
-induction h; intros. apply None.
-destruct (eq_id_dec i field) eqn:h2.
-apply (Some T).
-apply (IHh T' eq_refl field).
-inversion h'; subst; eauto.
-Defined.
+
+
+Definition rcd_field_ty (rcd: ty) (h : only_rcd rcd) (h' : wf_ty rcd) (field : id) : option ty :=
+    rcd_field_ty' rcd field.
+
 
 
 Theorem rcd_field_ty_well_formed:
     forall rcd h h' i T,
         rcd_field_ty rcd h h' i = Some T->
         wf_ty T.
-    intros rcd h.
-    induction h; intros; eauto.
+    intros rcd.
+    induction rcd; intros;
+    try (
+        match goal with
+        | h0 : only_rcd _ |- _ => inversion h0; subst; eauto
+        end; fail
+    ); cbn in *.
     inversion H.
-    cbn in H. destruct (eq_id_dec i i0); subst; eauto.
-    inversion H; subst; eauto.
+    destruct (eq_id_dec i i0); subst; eauto.
+    inversion h'; subst; eauto. inversion H; subst; eauto.
+    Unshelve.
+    inversion h; subst; eauto.
     inversion h'; subst; eauto.
 Qed.
 
@@ -73,9 +81,16 @@ Theorem rcd_field_ty_not_TNone:
     forall rcd h h' i T,
         rcd_field_ty rcd h h' i = Some T ->
         rcd <> TNone.
-    intros rcd h. induction h; intros; intro; subst; eauto.
-    inversion H; subst; eauto.
-    inversion H0.
+    intros rcd.
+    induction rcd;intros;
+    try (
+        match goal with
+        | h0 : only_rcd _ |- _ => inversion h0; subst; eauto
+        end; fail
+    ); cbn in *.
+    inversion H.
+    intro. inversion H0.
+
 Qed.
 
 
@@ -768,8 +783,8 @@ Theorem progress:
         poses' (rcd_field_ty_not_TNone _ _ _ _ _ H4).
         poses' (subty_rcd_not_none _ _ x0 H2 H).
         destruct (subty_wf _ _ H).
-        poses' (subty_rcd _ _ x0 H).
-        poses' (ext_type_trcd _ H1 _ h1_2 H3 H8 H6); destructALL; subst; eauto.
+        poses' (subty_rcd _ _ x0 H). Check ext_type_trcd.
+        poses' (ext_type_trcd _ H1 _ h1_2 H3 H7 H5); destructALL; subst; eauto.
         inversion h1_2; subst; eauto. destruct (eq_id_dec x x2); subst; eauto; try discriminate.
     (* case: tleft*)
     destructALL;
@@ -829,7 +844,7 @@ Theorem has_type_unique:
     (* case tfield*)
     erewrite (wf_ty_indistinct _ h1 h5) in H.
     erewrite (orcd_indistinct _ h0 h4) in H.
-    rewrite H in H6. inversion H6; subst; eauto.
+    rewrite H in *. inversion H5; subst; eauto.
 Qed.
 
 Inductive free_occur_in : id -> tm -> Prop :=
@@ -1398,7 +1413,7 @@ Theorem has_type_dec :
     right; intros; intro hh; inversion hh;  subst; eauto; try discriminate.
     rewrite (orcd_indistinct _ o h2) in *.
     rewrite (wf_ty_indistinct _ w h3) in *.
-    rewrite H5 in *.
+    rewrite H4 in *.
     try discriminate.
 Qed.
 

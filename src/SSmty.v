@@ -23,7 +23,7 @@ Inductive ty : Set :=
 
     Hint Constructors ty.
 
-Inductive only_rcd : ty -> Set :=
+Inductive only_rcd : ty -> Prop :=
     | odNone : only_rcd TNone
     | odRcd : forall i T T',
         only_rcd T' ->
@@ -599,10 +599,17 @@ Qed.
 
 
 
-Axiom wf_ty_rcons_rcd:
+Theorem wf_ty_rcons_rcd:
     forall i T1 T2,
         wf_ty (TRcons i T1 T2) ->
         only_rcd T2.
+intros i T1 T2 h0.
+inversion h0; subst; eauto.
+Qed.
+
+
+
+
 
 Lemma subty_extrac_trcons1:
     forall i T T1 T2,
@@ -619,30 +626,42 @@ Lemma subty_extrac_trcons1:
     destructALL. eauto.
 Qed.
 
-Axiom subty_rcd:
+Theorem subty_rcd:
     forall a b,
         only_rcd b ->
         subty a b ->
         only_rcd a.
+    intros a b h0 h.
+    glize h0 0.
+    induction h; intros; subst; eauto.
+    inversion h0.
+    inversion h0.
+Qed.
     
-Definition struct_size : 
-    forall (t : ty) (h : only_rcd t), nat.
-    refine (
-        fix F t :=
-        match t with
-        | TNone => fun h0 => 0
-        | TRcons _ _ tail =>  fun h0 => _
-        | _ => fun h0 => _
-        end
-    );
-    try (match goal with
-            | h0 : only_rcd _ |- _ => inversion h0; fail
-        end
-        ).
-    inversion h0; subst.
-    poses' (F _ H0).
-    apply (S H).
-Defined.
+    
+
+Theorem subty_rcd1:
+    forall T1 T2,
+        only_rcd T1 ->
+        subty T1 T2 ->
+        only_rcd T2.
+
+    intros T1 T2 h0 h.
+    glize h0 0.
+    induction h; intros; subst; eauto.
+    inversion h0.
+    inversion h0.
+Qed.
+    
+Fixpoint struct_size' (t: ty) : nat :=
+    match t with
+    | TRcons i j k => S (struct_size' k)
+    | _ => 0
+    end.
+
+Definition struct_size (t:ty) (h: only_rcd t) : nat :=
+    struct_size' t.
+
 
 Lemma struct_size_reduce:
     forall i0 T1 T2 (h0: only_rcd T2) (h1: only_rcd (TRcons i0 T1 T2)),
@@ -654,10 +673,7 @@ Lemma struct_size_reduce:
     destruct h1;
     intros; try discriminate.
     inversion HeqT'; subst; eauto.
-    pattern (struct_size (TRcons i0 T1 T2) (odRcd i0 T1 T2 h1)).
-    cbn. 
-    rewrite (orcd_indistinct _ h1 h0).
-    auto.
+
 Qed.
 
 Theorem subty_struct_size_le:
@@ -684,8 +700,7 @@ Theorem subty_struct_size_le:
     repeat rewrite (struct_size_reduce _ _ _ H6).
     auto.
 
-    rewrite (orcd_indistinct _ h2 h1).
-    auto.
+
 
     poses' (subty_rcd _ _ h2 H0 ).
     poses' (IHsubty1 H1 h1).
