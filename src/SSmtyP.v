@@ -173,10 +173,9 @@ Inductive has_type : Context (type := {x : ty | wf_ty x}) -> tm -> ty -> Prop :=
 | ht_fun : forall ctx i T body TO (h: wf_ty T),
     has_type (update i (exist _ T h) ctx) body TO ->
     has_type ctx (tfun i T h body) (TFun T TO)
-| ht_app : forall ctx t0 t1 T0' T0 T1,
+| ht_app : forall ctx t0 t1 T0 T1,
     has_type ctx t0 (TFun T0 T1) ->
-    has_type ctx t1 T0' ->
-    subty T0' T0 ->
+    has_type ctx t1 T0 ->
     has_type ctx (tapp t0 t1) T1
 | ht_let : forall ctx i T bind body T' (h: wf_ty T),
     has_type ctx bind T ->
@@ -210,7 +209,12 @@ Inductive has_type : Context (type := {x : ty | wf_ty x}) -> tm -> ty -> Prop :=
 | ht_seq : forall ctx t0 t1 T0 T1,
     has_type ctx t0 T0 ->
     has_type ctx t1 T1 ->
-    has_type ctx (tseq t0 t1) T1.
+    has_type ctx (tseq t0 t1) T1
+| ht_subty: forall ctx t T0 T1,
+    has_type ctx t T0 ->
+    subty T0 T1 ->
+    T0 <> T1 ->
+    has_type ctx t T1.
 
 Hint Constructors has_type.
 
@@ -225,6 +229,7 @@ Theorem has_type_well_formed:
     inversion IHh3; subst; eauto.
     poses' (rcd_field_ty_well_formed _ _ _ _ _ H).
     eauto.
+    poses' (subty_wf _ _ H); destructALL; eauto.
 Qed.
 
 Inductive value : tm -> Prop :=
@@ -601,7 +606,13 @@ Lemma ext_type_tnat:
     try (match goal with
             | H0 : has_type _ _ _ |- _ => inversion H0; subst; eauto
         end
-    ).
+    );
+    (
+        match goal with
+        | h1 : ?T <> TNat, h2: subty ?T TNat =>
+            
+    )
+
 Qed.
     
 Lemma ext_type_tchr:
