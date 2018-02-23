@@ -1493,32 +1493,10 @@ Lemma preservation_on_subst0:
         eapply IHbody; eauto. eapply ht_fun; eauto.
         eapply ctx_eq_rewrite ; eauto.
 
-        (* case tfield *)
-        inversion H4; subst; eli_dupli_wf_ty_orcd; eauto.
 Qed.
             
 
-        
-(*Theorem steppable_has_type:
-    forall t t',
-        step t t' ->
-        (exists T, has_type empty t T).
-    intros t.
-    induction t;
-    intros; subst; try discriminate; try contradiction;
-    try (
-        match goal with
-        | h0 : step _ _ |- _ => inversion h0; subst; eauto
-        end
-    ).
     
-*)
-
-Axiom subty_rcd1:
-    forall T1 T2,
-        only_rcd T1 ->
-        subty T1 T2 ->
-        only_rcd T2.
 Lemma preservation_on_subst1:
     forall i t T0 T0' w body  ctx T1,
         has_type empty t T0 ->
@@ -1552,6 +1530,11 @@ Lemma preservation_on_subst1:
         eauto. eauto. eapply ht_rcd; eauto. eapply subty_rcd1; eauto.
 
         inversion H1; subst; eauto.
+        forwards: IHbody1; eauto.
+        forwards: IHbody2; eauto.
+        forwards: IHbody3; eauto.
+        destructALL; eexists; split; eauto.
+        eapply ht_if.
         
 
         
