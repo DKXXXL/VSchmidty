@@ -607,11 +607,12 @@ Lemma ext_type_tnat:
             | H0 : has_type _ _ _ |- _ => inversion H0; subst; eauto
         end
     );
-    (
+    try(
         match goal with
-        | h1 : ?T <> TNat, h2: subty ?T TNat =>
-            
-    )
+        | h1 : ?T <> TNat, h2: subty ?T TNat |- _ =>
+            destruct (h1 (subty_onlyrefl_tnat1 _ h2))
+        end     
+    ).
 
 Qed.
     
@@ -626,22 +627,17 @@ Lemma ext_type_tchr:
     try (match goal with
             | H0 : has_type _ _ _ |- _ => inversion H0; subst; eauto
         end
+    );
+    try(
+        match goal with
+        | h1 : ?T <> TChr, h2: subty ?T TChr |- _ =>
+            destruct (h1 (subty_onlyrefl_tchr1 _ h2))
+        end     
     ).
+
 Qed.
 
-Lemma ext_type_tfun:
-    forall t,
-        value t ->
-        forall iT oT,
-        has_type empty t (TFun iT oT) ->
-        (exists i T w body, t = tfun i T w body) \/ (exists T o w i, t = tfield T o w i).
-        intros t h0;
-    induction h0; intros; subst; eauto; try discriminate;
-    try (match goal with
-            | H0 : has_type _ _ _ |- _ => inversion H0; subst; eauto
-        end
-    ); [left | right]; eexists; eauto.
-Qed.
+
 
 
 Lemma ext_type_tbool:
@@ -655,24 +651,16 @@ Lemma ext_type_tbool:
     try (match goal with
             | H0 : has_type _ _ _ |- _ => inversion H0; subst; eauto
         end
+    );
+    try(
+        match goal with
+        | h1 : ?T <> TBool, h2: subty ?T TBool |- _ =>
+            destruct (h1 (subty_onlyrefl_tbool1 _ h2))
+        end     
     ).
 Qed.
 
-Lemma ext_type_tsum:
-    forall t,
-        value t ->
-        forall TL TR,
-        has_type empty t (TSum TL TR) ->
-        (exists w tl tr, t = tleft tl w tr) \/
-        (exists w tl tr, t = tright w tl tr).
-        
-        intros t h0;
-    induction h0; intros; subst; eauto; try discriminate;
-    try (match goal with
-            | H0 : has_type _ _ _ |- _ => inversion H0; subst; eauto
-        end
-    ).
-Qed.
+(* This Lemma is wrong *)
 
 Lemma ext_type_tnone:
     forall t,
@@ -685,7 +673,7 @@ Lemma ext_type_tnone:
             | H0 : has_type _ _ _ |- _ => inversion H0; subst; eauto
         end
     ).
-Qed.
+Abort.
 
 Lemma ext_type_trcd:
     forall t,
@@ -706,10 +694,53 @@ Lemma ext_type_trcd:
             | H0 : only_rcd _ |- _ => inversion H0; subst; eauto
         end;
         try discriminate
+    ); try destruct (H0 eq_refl).
+    Focus 3.
+
+Abort.
+
+
+Lemma ext_type_tfun:
+    forall t,
+        value t ->
+        forall iT oT,
+        has_type empty t (TFun iT oT) ->
+        (exists i T w body, t = tfun i T w body) \/ (exists T o w i, t = tfield T o w i).
+        intros t h0;
+    induction h0; intros; subst; eauto; try discriminate;
+    try (match goal with
+            | H0 : has_type _ _ _ |- _ => inversion H0; subst; eauto
+        end
     ).
-    (* Case: TNone*)
-    destruct (H0 eq_refl).
-Qed.
+    try(
+        match goal with
+        | h1 : ?T <> (TFun _ _), h2: subty ?T (TFun _ _) |- _ =>
+            destruct (h1 (subty_extrac_tfun1 _ _ _ h2))
+        end     
+    ).
+    Focus 3.
+    
+    inversion H0; subst; eauto.
+    
+Abort.
+
+Lemma ext_type_tsum:
+    forall t,
+        value t ->
+        forall TL TR,
+        has_type empty t (TSum TL TR) ->
+        (exists w tl tr, t = tleft tl w tr) \/
+        (exists w tl tr, t = tright w tl tr).
+        
+        intros t h0;
+    induction h0; intros; subst; eauto; try discriminate;
+    try (match goal with
+            | H0 : has_type _ _ _ |- _ => inversion H0; subst; eauto
+        end
+    ).
+    Focus 2.
+Abort.
+
 
 
 
