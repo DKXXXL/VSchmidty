@@ -1658,7 +1658,7 @@ Qed.
 
 
 
-
+(* 
 Theorem has_type_dec :
     forall ctx t,
         {T | has_type ctx t T} + {forall T, ~ has_type ctx t T}.
@@ -1869,7 +1869,7 @@ Theorem has_type_dec :
     rewrite H4 in *.
     try discriminate.
 Qed.
-
+ *)
 
 
 Lemma preservation_on_subst0:
