@@ -94,6 +94,61 @@ Theorem rcd_field_ty_not_TNone:
 Qed.
 
 
+Inductive eq_option {T : Type} : option T -> option T -> Prop :=
+    | eq_some_refl : forall j, eq j j -> eq_option (Some j) (Some j).
+
+Notation "A '=S=' B" := (eq_option A B) (at level 75).
+
+
+
+Fixpoint index_rcd_id (n : nat) (t : ty) : option id :=
+    match n with
+    | O => match t with
+            | TRcons r _ _ => Some r
+            | _ => None
+            end
+    | S x => match t with
+            | TRcons _ _ tail => index_rcd_id x tail
+            | _ => None
+            end
+    end.
+
+Definition well_named (t : ty) :=
+    forall i j, i <> j -> ~(index_rcd_id i t =S= index_rcd_id j t).
+    
+Definition well_inherited {T1 T2: ty} (h: subty T1 T2) :=
+    forall i T, 
+    rcd_field_ty' T2 i = Some T ->
+    exists T', rcd_field_ty' T1 i = Some T' /\ subty T' T.
+
+Theorem well_named_inheritance:
+    forall T1 T2 (h0 : only_rcd T1) (h1: wf_ty T1) (h2: only_rcd T2) (h3 : wf_ty T2),
+        subty T1 T2 ->
+        well_named T1 ->
+        (forall i T, 
+            rcd_field_ty' T2 i = Some T ->
+            exists T', rcd_field_ty' T1 i = Some T' /\ subty T' T
+        ).
+    intros T1 T2 h0 h1 h2 h3 H.
+    glize h0 h1 h2 h3 0.
+    induction H; intros; subst; eauto;
+    try discriminate;
+    try (
+        match goal with
+        | h : only_rcd _ |- _ => inversion h; subst; eauto; fail
+        end;
+        fail
+    ).
+    cbn in *.
+    destruct (eq_id_dec i i0); subst; eauto.
+    inversion H6; subst; eauto.
+    eapply IHsubty2; eauto.
+    (* Need well_named_parent*)
+    Focus 2.
+    cbn in *.
+    destruct (eq_id_dec i i0); subst; eauto.
+Abort.
+    
 
 
 Lemma subty_none_a_a__none:
@@ -212,7 +267,8 @@ Inductive has_type : Context (type := {x : ty | wf_ty x}) -> tm -> ty -> Prop :=
     has_type ctx (tseq t0 t1) T1
 | ht_subty: forall ctx t T0 T1,
     has_type ctx t T0 ->
-    subty T0 T1 ->
+    forall (h:subty T0 T1),
+    well_inherited h ->
     T0 <> T1 ->
     has_type ctx t T1.
 
@@ -229,7 +285,7 @@ Theorem has_type_well_formed:
     inversion IHh3; subst; eauto.
     poses' (rcd_field_ty_well_formed _ _ _ _ _ H).
     eauto.
-    poses' (subty_wf _ _ H); destructALL; eauto.
+    poses' (subty_wf _ _ h0); destructALL; eauto.
 Qed.
 
 Inductive value : tm -> Prop :=
@@ -1154,6 +1210,48 @@ Lemma type_extracted_tfield:
 
 Qed.
 
+
+
+Theorem well_inherited_refl:
+    forall T (h : subty T T),
+        well_inherited h.
+    unfold well_inherited; eauto.
+    intros T.
+    destruct (only_rcd_dec T); subst; eauto.
+    intros h. poses' (subty_wf _ _ h);destructALL.
+    intros. poses' (eq_refl (rcd_field_ty T o H i)).
+    unfold rcd_field_ty at 2 in H2.
+    rewrite H1 in H2.
+    poses' (rcd_field_ty_well_formed _ _ _ _ _ H2).
+    repeat eexists; eauto.
+
+    glize f 0.
+    induction T; intros; subst; eauto;
+    try (
+    inversion H; fail
+    ).
+    poses' (subty_wf _ _ h); destructALL.
+    inversion H0; subst; eauto.
+    assert (only_rcd (TRcons i T1 T2)); eauto. destruct (f H2).
+Qed.
+
+Lemma type_extracted_tfield':
+    forall ctx T0 ort wft i T,
+        has_type ctx (tfield T0 ort wft i) T ->
+        (exists Ti To, 
+            T = TFun Ti To /\ only_rcd Ti /\ (exists (h:subty Ti T0), well_inherited h)).
+            intros ctx T0 ort wft i T h0.
+            remember (tfield T0 ort wft i) as t.
+            glize T0 i 0.
+            induction h0; intros;subst; eauto;
+            try discriminate; try contradiction.
+            inversion Heqt; subst; eauto.
+            exists T1. exists T; repeat split; eauto.
+            assert (subty T1 T1); eauto.
+            eexists H0. eapply well_inherited_refl.
+            
+Abort.
+
 Ltac calAsEqn h :=
     poses' (eq_refl h);
     match goal with
@@ -1357,49 +1455,72 @@ Lemma ext_type_trcd':
         fail
     ).
     forwards*:IHhas_type. eapply subty_rcd; eauto.
-    destruct (subty_wf _ _ H0); eauto.
+    destruct (subty_wf _ _ h); eauto.
 Qed.
 
-Inductive eq_option {T : Type} : option T -> option T -> Prop :=
-    | eq_some_refl : forall j, eq j j -> eq_option (Some j) (Some j).
-
-Notation "A '=S=' B" := (eq_option A B) (at level 75).
-
-
-
-Fixpoint index_rcd_id (n : nat) (t : ty) : option id :=
-    match n with
-    | O => match t with
-            | TRcons r _ _ => Some r
-            | _ => None
-            end
-    | S x => match t with
-            | TRcons _ _ tail => index_rcd_id x tail
-            | _ => None
-            end
-    end.
-
-Definition well_named (t : ty) :=
-    forall i j, i <> j -> ~(index_rcd_id i t =S= index_rcd_id j t).
+Theorem well_inherited_parent:
+    forall T1 T2 T3 (h0:subty T1 T2) (h1 : subty T2 T3),
+        well_inherited h0 ->
+        well_inherited h1.
     
+    intros T1 T2 T3.
+    unfold well_inherited.
+    glize T1 T2 0.
+    induction T3; intros; subst; eauto; try (inversion H0; fail).
+    cbn in H0. destruct (eq_id_dec i i0); subst; eauto.
+Abort.
 
+Lemma rcd_field_ty'_wf_is_good:
+    forall T i T' (h: wf_ty T),
+        rcd_field_ty' T i = Some T' ->
+        only_rcd T.
+    intros T.
+    induction T; intros; subst; eauto; cbn in *; eauto; try discriminate.
+    eapply odRcd. inversion h; subst; eauto.
+Qed.
+
+(* Theorem well_inherited_squeeze:
+    forall T1 T3 (h1: subty T3 T1) (h2: well_inherited h1),
+        forall T2 (h3 : subty T3 T2) ,
+            subty T2 T1 ->
+            well_inherited h3.
+    
+    unfold well_inherited.
+    intros T1 T3 h1 h2 T2.
+    glize T1 T3 0.
+    induction T2; intros; subst; eauto; cbn in *; try discriminate.
+     *)
 
 Lemma has_type_field_struct_complete:
-    forall i T0 T (h0: only_rcd T0) (h1: wf_ty T0),
-        has_type empty (tfield T0 h0 h1 i) (TFun T0 T) ->
-        rcd_field_ty T0 h0 h1 i = Some T.
+    forall i T0 T1 T (h0: only_rcd T0) (h1 : only_rcd T1) (h2: wf_ty T0) (h3: wf_ty T1),
+        has_type empty (tfield T0 h0 h2 i) (TFun T1 T) ->
+        forall (h : subty T1 T0),
+        well_inherited h ->
+        exists T', rcd_field_ty T1 h1 h3 i = Some T' /\ (exists h' : subty T' T, well_inherited h').
 
-    intros i T0 T h0 h1 H.
+    intros i T0 T1 T h0 h1 h2 h3 H.
     remember empty as ctx;
-    remember (tfield T0 h0 h1 i) as t;
-    remember (TFun T0 T) as T'.
-    glize h0 h1 T0 i Heqctx T 0.
+    remember (tfield T0 h0 h2 i) as t;
+    remember (TFun T1 T) as T'.
+    glize h0 h1 T0 i Heqctx T T1  0.
     induction H; intros; subst; eauto;
-    try discriminate. inversion Heqt; subst; eauto.
-    inversion HeqT'; subst; eauto.
+    try discriminate. inversion Heqt; inversion HeqT'; subst; eauto.
+    poses' (rcd_field_ty_well_formed _ _ _ _ _ H).
+    repeat eexists; eauto.
+    poses' (rcd_field_ty'_wf_is_good _ _ _ H1 H2).
+    assert (wf_ty T).
+    poses' (rcd_field_ty_well_formed).
+    eapply (rcd_field_ty_well_formed T2 H3 H1 i T). eauto.
+    eauto.
     destruct (type_extracted_tfield _ _ _ _ _ _ H); destructALL; subst; eauto.
+
+
+    destruct (subty_wf _ _ H5); destructALL.
+    poses' (IHhas_type _ H3 _ eq_refl eq_refl _ _ _ H4 _ eq_refl).
+    eli_dupli_wf_ty_orcd.
+    destruct (subty_extra_tfun _ _ _ _ h); destructALL.
     
-    forwards*: IHhas_type.
+
 Abort.
 
 
@@ -1477,10 +1598,11 @@ Theorem progress:
     try(eexists; eauto; fail).
 
         (* case: tapp: tfield*)
+
         destruct (type_extracted_tfield _ _ _ _ _ _ h1_1); destructALL.
         inversion H1; subst; eauto.
         poses' (has_type_well_formed _ _ _ h1_2).
-        destruct (ext_type_trcd' _ H0 _ h1_2 H2 H3); subst; eauto.
+        destruct (ext_type_trcd' _ H0 _ h1_2 H2 H4); subst; eauto.
         
 
         (* inversion h1_1; subst; eauto.
