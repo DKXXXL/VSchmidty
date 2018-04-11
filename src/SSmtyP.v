@@ -1133,22 +1133,35 @@ Lemma type_extracted_tsum1:
     forwards: subty_extrac_tsum0; eauto; subst.
 Qed.
 
+
 Lemma type_extracted_tfield:
     forall ctx T0 ort wft i T,
         has_type ctx (tfield T0 ort wft i) T ->
-        exists Ti To, 
-            T = TFun Ti To.
+        (exists Ti To, 
+            T = TFun Ti To /\ only_rcd Ti /\ subty Ti T0).
     intros ctx T0 ort wft i T h0.
     remember (tfield T0 ort wft i) as t.
     glize T0 i 0.
     induction h0; intros;subst; eauto;
     try discriminate; try contradiction.
+    inversion Heqt; subst; eauto.
+    repeat eexists; eauto.
     forwards :IHh0; subst; eauto.
     destructALL; subst; eauto.
     forwards: subty_extrac_tfun0; eauto; subst.
+    destructALL; subst. forwards*: subty_extra_tfun;destructALL; subst; eauto. 
+    repeat exists. repeat split; eauto. eapply subty_rcd; eauto.
+
 Qed.
 
-
+Ltac calAsEqn h :=
+    poses' (eq_refl h);
+    match goal with
+    | HH : h = h |- _ =>
+        pattern h in HH at 2;
+        simpl h at 2 in HH;
+        cbn beta in HH
+    end.
 
 Lemma ext_type_trcd:
     forall t,
@@ -1161,7 +1174,7 @@ Lemma ext_type_trcd:
         exists i th tt, t = trcons i th tt.
     intros t h0;
     induction h0; intros; subst; eauto; try discriminate;
-    try (match goal with
+    try ((match goal with
             | H0 : has_type _ _ _ |- _ => inversion H0; subst; eauto
         end;
         match goal with
@@ -1169,11 +1182,52 @@ Lemma ext_type_trcd:
             | H0 : only_rcd _ |- _ => inversion H0; subst; eauto
         end;
         try discriminate
-    ); try destruct (H0 eq_refl).
-    Focus 3.
+    ); try destruct (H0 eq_refl);
+    try
+    (
+        match goal with
+        | h0: has_type empty ?t0 _ |- _ =>
+            calAsEqn (check_type_trivial t0);
+            match goal with
+            | hh0 : check_type_trivial _ = _ |- _ =>
+                poses' (check_type_trivial_unqiue _ _ _ hh0 H);
+                subst; try discriminate
+            end
+        end
+    ); fail).
+    (* case tfun *)
+    destruct (type_extracted_tfun _ _ _ _ _ _ H);
+    destructALL; subst.
+    inversion H1.
 
-Abort.
+    (* case tleft*)
+    destruct (type_extracted_tsum0 _ _ _ _ _ H);
+    destructALL; subst.
+    inversion H1.
 
+    (* case tright *)
+    destruct (type_extracted_tsum1 _ _ _ _ _ H);
+    destructALL; subst.
+    inversion H1.
+
+    (* case tfield *)
+    destruct (type_extracted_tfield _ _ _ _ _ _ H);
+    destructALL; subst.
+    inversion H1.
+Qed.
+
+Lemma type_extracted_trcd:
+    forall i t0 t1 T,
+        has_type empty (trcons i t0 t1) T ->
+        only_rcd T.
+    intros i t0 t1 T h.
+    remember empty as ctx.
+    remember (trcons i t0 t1) as t.
+    glize i t0 t1 Heqctx 0.
+    induction h; intros; subst; eauto; try discriminate.
+    forwards: IHh; eauto. 
+    eapply subty_rcd1; eauto.
+Qed.
 
 Lemma ext_type_tfun:
     forall t,
@@ -1181,23 +1235,72 @@ Lemma ext_type_tfun:
         forall iT oT,
         has_type empty t (TFun iT oT) ->
         (exists i T w body, t = tfun i T w body) \/ (exists T o w i, t = tfield T o w i).
-        intros t h0;
-    induction h0; intros; subst; eauto; try discriminate;
-    try (match goal with
-            | H0 : has_type _ _ _ |- _ => inversion H0; subst; eauto
-        end
-    ).
-    Focus 9.
 
-    (* try(
+    intros t h0 iT oT H.
+    remember empty as ctx;
+    remember (TFun iT oT) as T'.
+    glize iT oT Heqctx h0 0.
+    induction H;intros; subst; eauto; try discriminate;
+    try (
         match goal with
-        | h1 : ?T <> (TFun _ _), h2: subty ?T (TFun _ _) |- _ =>
-            destruct (h1 (subty_extrac_tfun1 _ _ _ h2))
-        end     
-    ). *)
+        | h : value _ |- _ =>
+            inversion h
+        end; fail
+    ).
+
+    inversion HeqT'; subst; eauto. left; eauto.
+    inversion HeqT'; subst; eauto. right; eauto.
+    forwards*:subty_extrac_tfun1.
+Qed.
+
+
+
     
-    inversion H0; subst; eauto.
-Abort.
+
+(* Theorem subty_is_tree:
+    forall X Y Z,
+        subty X Z ->
+        subty X Y ->
+        (subty Y Z \/ subty Z Y).
+
+    intros X.
+    induction X; subst; eauto.
+    Focus 7.
+    (*case TRcons*)
+    intros.
+    destruct (subty_wf _ _ H).
+    inversion H1; subst; eauto.
+    assert (only_rcd (TRcons i X1 X2)); eauto.
+    assert (only_rcd Z). eapply subty_rcd1; eauto.
+    assert (only_rcd Y). eapply (subty_rcd1 _ _ H3); eauto.
+    destruct H4; destruct H5; eauto; try tauto.
+        (* Base case*)
+        left. eapply subty_rcons_none0; eauto. eapply subty_wf; eauto.
+        right. eapply subty_rcons_none0; eauto. 
+    
+        (* Inductive *)
+        poses' subty_extrac_trcd1.
+        destruct (subty_extrac_trcd1 _ _ _ _ _ _ H);
+        destruct (subty_extrac_trcd1 _ _ _ _ _ _ H0);
+        destructALL; subst; eauto;
+        try (
+            match goal with
+            | hh0 : subty X1 ?x1, hh1 : subty X1 ?x1',
+                hhh0 : subty X2 ?x2, hhh1 : subty X2 ?x2'
+                |- _ =>
+                    destruct (IHX1 _ _ hh0 hh1); 
+                    destruct (IHX2 _ _ hhh0 hhh1);
+                    destructALL;
+                    
+                    subst; 
+                    construct_wf_ty_and_orcd;
+                    clear_dupli
+                    
+            end  
+        ).
+        left; eauto.
+Abort. *)
+
 
 Lemma ext_type_tsum:
     forall t,
@@ -1206,17 +1309,98 @@ Lemma ext_type_tsum:
         has_type empty t (TSum TL TR) ->
         (exists w tl tr, t = tleft tl w tr) \/
         (exists w tl tr, t = tright w tl tr).
-        
-        intros t h0;
+      
+    intros t h0 TL TR h.
+    remember empty as ctx;
+    remember (TSum TL TR) as H.
+    glize h0 Heqctx TL TR 0.
+    induction h; intros; subst; eauto; try discriminate;
+    try (
+        match goal with
+        | h : value _ |- _ =>
+            inversion h
+        end; fail
+    ).
+
+    forwards*: subty_extrac_tsum1.
+Qed.
+
+        (* intros t h0;
     induction h0; intros; subst; eauto; try discriminate;
     try (match goal with
             | H0 : has_type _ _ _ |- _ => inversion H0; subst; eauto
         end
     ).
     Focus 2.
+Abort. *)
+
+Lemma ext_type_trcd':
+    forall t,
+        value t ->
+        forall T,
+        has_type empty t T ->
+        only_rcd T ->
+        wf_ty T ->
+        t = tnone \/ exists i th tt, t = trcons i th tt.
+    intros t h T H.
+    remember empty as ctx.
+    glize h Heqctx 0.
+    induction H; intros; subst; eauto;
+    try discriminate;
+    try (
+        match goal with
+        | h: value _ |- _ =>
+            inversion h; subst; eauto; fail
+        | h: only_rcd _ |- _ =>
+            inversion h; subst; eauto
+        end;
+        fail
+    ).
+    forwards*:IHhas_type. eapply subty_rcd; eauto.
+    destruct (subty_wf _ _ H0); eauto.
+Qed.
+
+Inductive eq_option {T : Type} : option T -> option T -> Prop :=
+    | eq_some_refl : forall j, eq j j -> eq_option (Some j) (Some j).
+
+Notation "A '=S=' B" := (eq_option A B) (at level 75).
+
+
+
+Fixpoint index_rcd_id (n : nat) (t : ty) : option id :=
+    match n with
+    | O => match t with
+            | TRcons r _ _ => Some r
+            | _ => None
+            end
+    | S x => match t with
+            | TRcons _ _ tail => index_rcd_id x tail
+            | _ => None
+            end
+    end.
+
+Definition well_named (t : ty) :=
+    forall i j, i <> j -> ~(index_rcd_id i t =S= index_rcd_id j t).
+    
+
+
+Lemma has_type_field_struct_complete:
+    forall i T0 T (h0: only_rcd T0) (h1: wf_ty T0),
+        has_type empty (tfield T0 h0 h1 i) (TFun T0 T) ->
+        rcd_field_ty T0 h0 h1 i = Some T.
+
+    intros i T0 T h0 h1 H.
+    remember empty as ctx;
+    remember (tfield T0 h0 h1 i) as t;
+    remember (TFun T0 T) as T'.
+    glize h0 h1 T0 i Heqctx T 0.
+    induction H; intros; subst; eauto;
+    try discriminate. inversion Heqt; subst; eauto.
+    inversion HeqT'; subst; eauto.
+    destruct (type_extracted_tfield _ _ _ _ _ _ H); destructALL; subst; eauto.
+    
+    forwards*: IHhas_type.
 Abort.
-
-
 
 
 
@@ -1291,14 +1475,25 @@ Theorem progress:
                     destruct (ext_type_tfun _ h0 _ _ h1); destructALL; subst; eauto; generalize dependent h0; generalize dependent h1
                   end));intros;
     try(eexists; eauto; fail).
+
         (* case: tapp: tfield*)
-        inversion h1_1; subst; eauto. 
-        poses' (rcd_field_ty_not_TNone _ _ _ _ _ H4).
+        destruct (type_extracted_tfield _ _ _ _ _ _ h1_1); destructALL.
+        inversion H1; subst; eauto.
+        poses' (has_type_well_formed _ _ _ h1_2).
+        destruct (ext_type_trcd' _ H0 _ h1_2 H2 H3); subst; eauto.
+        
+
+        (* inversion h1_1; subst; eauto.
+        poses' (rcd_field_ty_not_TNone _ _ _ _ _ H3).
+        inversion x0; eauto. symmetry in H2. destruct (H1 H2).
+        subst; eauto. 
+        Check ext_type_trcd.
+        poses' (ext_type_trcd _ H0 _ h1_2 H1 x0 h3); destructALL; subst; eauto.
+        destruct (eq_id_dec x2 x); subst; eauto.
         poses' (subty_rcd_not_none _ _ x0 H2 H).
         destruct (subty_wf _ _ H).
-        poses' (subty_rcd _ _ x0 H). Check ext_type_trcd.
-        poses' (ext_type_trcd _ H1 _ h1_2 H3 H7 H5); destructALL; subst; eauto.
-        inversion h1_2; subst; eauto. destruct (eq_id_dec x x2); subst; eauto; try discriminate.
+        poses' (subty_rcd _ _ x0 H). 
+        inversion h1_2; subst; eauto. destruct (eq_id_dec x x2); subst; eauto; try discriminate. *)
     (* case: tleft*)
     destructALL;
     match goal with
