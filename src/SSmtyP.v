@@ -1491,12 +1491,38 @@ Qed.
     induction T2; intros; subst; eauto; cbn in *; try discriminate.
      *)
 
+
+Lemma rcd_field_subty_weak:
+    forall T T' (h0 : only_rcd T) (h1: wf_ty T) (h2: only_rcd T') (h3 : wf_ty T') i s,
+        subty T' T ->
+        rcd_field_ty T h0 h1 i = Some s ->
+        (exists s', rcd_field_ty T' h2 h3 i = Some s').
+    intros T T' h0 h1 h2 h3 i s H.
+    glize h0 h1 h2 h3 i s 0.
+    induction H; intros; subst; eauto; cbn in *; try discriminate.
+    destruct (eq_id_dec i i0); subst; eauto.
+    assert (only_rcd q1); eauto.
+    assert (wf_ty q1); eauto.
+    cut (exists s' : ty, rcd_field_ty q1 H6 H7 i0 = Some s'); intros;eauto.
+    
+    destruct (eq_id_dec i i0); subst; eauto.
+    assert (only_rcd q1); eauto.
+    assert (wf_ty q1); eauto.
+    cut (exists s' : ty, rcd_field_ty q1 H6 H7 i0 = Some s'); intros; eauto.
+
+    poses' (subty_rcd _ _ h0 H0).
+    poses' (subty_wf _ _ H0); destructALL.
+    cut (exists s' : ty, rcd_field_ty t1 H2 H3 i = Some s'); intros; eauto.
+    destructALL. eauto.
+    Unshelve. eauto. eauto.
+Qed.
+
+
+
 Lemma has_type_field_struct_complete:
     forall i T0 T1 T (h0: only_rcd T0) (h1 : only_rcd T1) (h2: wf_ty T0) (h3: wf_ty T1),
         has_type empty (tfield T0 h0 h2 i) (TFun T1 T) ->
-        forall (h : subty T1 T0),
-        well_inherited h ->
-        exists T', rcd_field_ty T1 h1 h3 i = Some T' /\ (exists h' : subty T' T, well_inherited h').
+        exists T', rcd_field_ty T1 h1 h3 i = Some T'.
 
     intros i T0 T1 T h0 h1 h2 h3 H.
     remember empty as ctx;
@@ -1505,23 +1531,16 @@ Lemma has_type_field_struct_complete:
     glize h0 h1 T0 i Heqctx T T1  0.
     induction H; intros; subst; eauto;
     try discriminate. inversion Heqt; inversion HeqT'; subst; eauto.
-    poses' (rcd_field_ty_well_formed _ _ _ _ _ H).
-    repeat eexists; eauto.
-    poses' (rcd_field_ty'_wf_is_good _ _ _ H1 H2).
-    assert (wf_ty T).
-    poses' (rcd_field_ty_well_formed).
-    eapply (rcd_field_ty_well_formed T2 H3 H1 i T). eauto.
-    eauto.
-    destruct (type_extracted_tfield _ _ _ _ _ _ H); destructALL; subst; eauto.
 
+    destruct (subty_extrac_tfun1 _ _ _ h); destructALL; subst; eauto.
+    construct_wf_ty_and_orcd.
+    inversion H2; inversion H3; subst; eauto.
+    poses' (subty_extra_tfun _ _ _ _ h); destructALL.
+    poses' (subty_rcd1 _ _ h1 H4).
+    poses' (IHhas_type _ H6 _ eq_refl eq_refl _ _ _ H8 _ eq_refl).
+    destructALL. eapply rcd_field_subty_weak; eauto.
+Qed.
 
-    destruct (subty_wf _ _ H5); destructALL.
-    poses' (IHhas_type _ H3 _ eq_refl eq_refl _ _ _ H4 _ eq_refl).
-    eli_dupli_wf_ty_orcd.
-    destruct (subty_extra_tfun _ _ _ _ h); destructALL.
-    
-
-Abort.
 
 
 
@@ -1598,24 +1617,21 @@ Theorem progress:
     try(eexists; eauto; fail).
 
         (* case: tapp: tfield*)
-
+        
         destruct (type_extracted_tfield _ _ _ _ _ _ h1_1); destructALL.
         inversion H1; subst; eauto.
         poses' (has_type_well_formed _ _ _ h1_2).
-        destruct (ext_type_trcd' _ H0 _ h1_2 H2 H4); subst; eauto.
-        
 
-        (* inversion h1_1; subst; eauto.
-        poses' (rcd_field_ty_not_TNone _ _ _ _ _ H3).
-        inversion x0; eauto. symmetry in H2. destruct (H1 H2).
-        subst; eauto. 
-        Check ext_type_trcd.
-        poses' (ext_type_trcd _ H0 _ h1_2 H1 x0 h3); destructALL; subst; eauto.
-        destruct (eq_id_dec x2 x); subst; eauto.
-        poses' (subty_rcd_not_none _ _ x0 H2 H).
-        destruct (subty_wf _ _ H).
-        poses' (subty_rcd _ _ x0 H). 
-        inversion h1_2; subst; eauto. destruct (eq_id_dec x x2); subst; eauto; try discriminate. *)
+
+        destruct (ext_type_trcd' _ H0 _ h1_2 H2 H4); subst; eauto.
+        calAsEqn (check_type_trivial tnone).
+        poses' (check_type_trivial_unqiue _ _ _ H5 h1_2); subst; eauto.
+        poses' (subty_onlyrefl_tnone0 _ H3); subst; eauto.
+        poses' (has_type_field_struct_complete _ _ _ _ _ H2 _ H4 h1_1); destructALL.
+        cbn in *; inversion H6.
+        destructALL; subst; eauto.
+        destruct (eq_id_dec x2 x5); subst; eauto.
+
     (* case: tleft*)
     destructALL;
     match goal with
@@ -1631,12 +1647,12 @@ Theorem progress:
     end.
 
     (* case : tcase*)
+    
     right; destructALL; eauto.
     poses' (ext_type_tsum _ H _ _ h1_1); destructALL; subst; eauto.
     inversion H; subst; eauto.
-    inversion H; subst; eauto.
+    inversion H;subst; eauto.
 Qed.
-
 
 
 
