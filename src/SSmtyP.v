@@ -1643,44 +1643,35 @@ Theorem progress:
     inversion H;subst; eauto.
 Qed.
 
-
-
-
+(* 
 Lemma preservation_on_subst0:
-    forall i t T0 w body ctx T1,
+    forall i t T0 w body ctx T2 T1,
         has_type empty t T0 ->
-        has_type ctx (tfun i T0 w body) (TFun T0 T1) ->
+        has_type ctx (tfun i T0 w body) (TFun T2 T1) ->
         has_type ctx (subst i t body) T1.
 
         intros i t T0 w body.
+
         glize i t T0 0.
         pose empty_typed_ctx_typed as H.
-        induction body; intros; subst; eauto; cbn in *;
+        induction body; intros; subst; eauto; cbn in *.
+        inversion H1; subst; eauto.
+        Focus 2.
+
         (* Try all things *)
         try (
             match goal with
             | h0 : has_type _ (_ _) _ |- _ =>
-                inversion h0; subst; eauto 10
+                inversion h0; subst; eauto 
             end
         );
 
-        try(
-            match goal with
-            | h0 : has_type ?ctx0 ?t0 ?T0 |- has_type _ ?t0 ?T0 => 
-                poses' (empty_typed_ctx_typed _ _ (ht_none empty) ctx0);
-                poses' (empty_typed_ctx_typed _ _ (ht_true empty) ctx0);
-                poses' (empty_typed_ctx_typed _ _ (ht_false empty) ctx0); 
-                eli_dupli_type; subst
-            end;
-            eauto;
-            fail
-        );
         try (
             
             match goal with
             | h0 : has_type (update _ _ _) (_ _) _ |- _ =>
                 inversion h0; subst; eauto;
-                eauto 10
+                eauto 
             end;
             fail
         );
@@ -1720,7 +1711,7 @@ Lemma preservation_on_subst0:
         eapply IHbody; eauto. eapply ht_fun; eauto.
         eapply ctx_eq_rewrite ; eauto.
 
-Qed.
+Qed. *)
             
 
     
@@ -1742,13 +1733,12 @@ Lemma preservation_on_subst1:
                 poses' (empty_typed_ctx_typed _ _ (ht_none empty) ctx0);
                 poses' (empty_typed_ctx_typed _ _ (ht_true empty) ctx0);
                 poses' (empty_typed_ctx_typed _ _ (ht_false empty) ctx0); 
-                split; eauto;
-                eli_dupli_type; subst
+                split; eauto; subst
             end;
             eauto; fail
         );
         eli_dupli_wf_ty_orcd.
-        inversion H1; subst; eauto.
+        (* inversion H1; subst; eauto.
         destruct (IHbody1 _ _ _ _ _ _ _ H0 H7 H2); destructALL.
         destruct (IHbody2 _ _ _ _ _ _ _ H0 H9 H2); destructALL.
         eexists; split; eauto. eapply strcdd; auto.
@@ -1761,7 +1751,7 @@ Lemma preservation_on_subst1:
         forwards: IHbody2; eauto.
         forwards: IHbody3; eauto.
         destructALL; eexists; split; eauto.
-        eapply ht_if.
+        eapply ht_if. *)
         
 
         
@@ -1838,7 +1828,12 @@ Theorem preservation':
     end;
     eli_dupli_wf_ty_orcd.
 
-    Focus 9. inversion H0; subst; eauto.
+(* 
+    inversion H0; subst; eauto. forwards*:H1; subst; eauto; destructALL; eauto.
+    repeat eexists; try split; eauto. eapply strcdd; eauto. *)
+
+    Focus 9. inversion H; subst; eauto.
+    Focus 3. inversion h0_1; subst; eauto.
 
     inversion H0; subst; eauto. destruct (H1 _ H7). destructALL; eexists; split; eauto.
     eapply 
