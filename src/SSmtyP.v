@@ -1643,6 +1643,18 @@ Theorem progress:
     inversion H;subst; eauto.
 Qed.
 
+Definition finest_of (t : ty) (p : ty -> Prop) := 
+    forall (x:ty), p x -> subty t x.
+
+Theorem exist_finest_type:
+    forall ctx t T,
+        has_type ctx t T ->
+        (exists T', finest_of T' (fun x => has_type ctx t x)).
+    intros.
+    unfold finest_of.
+    induction H; intros; subst; eauto.
+    Focus 4.
+
 (* 
 Lemma preservation_on_subst0:
     forall i t T0 w body ctx T2 T1,
@@ -1725,7 +1737,16 @@ Lemma preservation_on_subst1:
         intros i t T0 T0' w body.
         glize i t T0 T0' 0.
         pose empty_typed_ctx_typed as H.
-        induction body; intros; subst; eauto; cbn in *;
+        induction body; intros; subst; eauto; cbn in *.
+        Focus 2.
+        inversion H1; subst; eauto.
+        Focus 2.
+
+        remember (update i0 (exist wf_ty T0' w) ctx) as ctx';
+        remember (trcons i body1 body2) as t'.
+        glize T0' T0 t i0 ctx Heqt' 0.
+        induction H1; intros; subst; eauto; try discriminate.
+        Focus 2.
         try(
             match goal with
             | h0 : has_type ?ctx0 ?t0 ?T0 |- exists _, _ /\ has_type _ ?t0 _ => 
@@ -1738,6 +1759,8 @@ Lemma preservation_on_subst1:
             eauto; fail
         );
         eli_dupli_wf_ty_orcd.
+        Focus 2. induction H1;subst; eauto.
+        Focus 2.
         (* inversion H1; subst; eauto.
         destruct (IHbody1 _ _ _ _ _ _ _ H0 H7 H2); destructALL.
         destruct (IHbody2 _ _ _ _ _ _ _ H0 H9 H2); destructALL.
