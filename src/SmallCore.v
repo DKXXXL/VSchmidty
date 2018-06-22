@@ -57,13 +57,15 @@ Inductive tm : Set :=
      *)
 
 
-    | tfun : id -> ty -> tm -> tm 
+    | tfun : id -> forall (T: ty),  wf_ty T -> tm -> tm 
+
     | tapp : tm -> tm -> tm
-    | tlet : id -> ty -> tm -> tm -> tm
-    | tfixApp : id -> ty -> tm -> tm -> tm
-    | tleft : tm -> ty -> tm 
-    | tright : ty -> tm -> tm
+    | tlet : id -> forall (T: ty),  wf_ty T -> tm -> tm -> tm
+    | tfixApp : id -> forall (T: ty),  wf_ty T -> tm -> tm
+    | tleft : tm -> forall (T: ty),  wf_ty T -> tm 
+    | tright: forall (T : ty),  wf_ty T -> tm -> tm
     | tcase : tm -> tm -> tm -> tm 
+    | trcons : id -> tm -> tm -> tm
         (*
             tcase (\ x -> x) (\ y -> y)
         *)
@@ -71,7 +73,7 @@ Inductive tm : Set :=
             type information is 
             lexical scoped
         *)
-    | tletrcd : id -> tyId -> ty -> list (id* ty) -> tm -> tm
+    (* | tletrcd : id -> tyId -> ty -> list (id* ty) -> tm -> tm
         (*
             letRcd (contructorA TypeA ParentType ((a, Int) (b, Int))
             in ... 
@@ -81,8 +83,8 @@ Inductive tm : Set :=
 
             letRcd (i J (Nat Nat))
             then i :: Int -> Int -> J
-        *)
-    | tfield : ty -> id -> tm.
+        *) *)
+    | tfield : forall (T: ty), only_rcd T ->  wf_ty T -> id -> tm.
 
 Fixpoint rcd_field_ty' (rcd: ty) (field : id) : option ty :=
     match rcd with
@@ -148,6 +150,15 @@ Theorem subty_defined_well_weak :
     destruct (IHh2 _ _ H); eauto.
 Qed.
 
+Theorem subty_defined_well_strong:
+    forall x y,
+        subty x y ->
+        forall T fid,
+            rcd_field_ty' y fid = Some T ->
+            exists T', rcd_field_ty' x fid = Some T' /\ subty T' T.
+
+
+            
 Ltac destructALL :=
 repeat (
     match goal with
