@@ -16,42 +16,40 @@ Definition  fieldId := id.
 Inductive ty : Set :=
     | TFun : ty -> ty -> ty
     | TSum : ty -> ty -> ty
-    | TBase : tyBase -> ty
     | TVar : tyId -> ty
+    | TNone : ty
     (* 
-        TVar is only used for recursive type
+        TVar represents primitive type variable
     *)
-    | TRcons : fieldID -> ty -> ty -> ty
-    | TRec : tyId -> ty -> ty.
+    | TRcons : fieldId -> ty -> ty -> ty.
 
-    Hint Constructors ty.
+Hint Constructors ty.
 
 Inductive only_rcd : ty -> Prop :=
-    | orcdBase : forall n, only_rcd (TBase n)
+    | orcdBase : only_rcd TNone
     | orcdRcd : forall i T T',
         only_rcd T' ->
         only_rcd (TRcons i T T').
 
-    Hint Constructors only_rcd.
+Hint Constructors only_rcd.
 
 Inductive wf_ty : ty -> Prop :=
     | wfFun : forall i o, wf_ty i -> wf_ty o -> wf_ty (TFun i o)
     | wfSum : forall l r, wf_ty l -> wf_ty r -> wf_ty (TSum l r)
-    | wfBase : forall n, wf_ty (TBase n)
+    | wfNone :  wf_ty TNone
     | wfRcd : forall i T T',
         wf_ty T ->
         wf_ty T' ->
         only_rcd T' ->
         wf_ty (TRcons i T T')
-    | wfRec : forall i T,
-        wf_ty T ->
-        wf_ty (TRec i T)
+    | wfVar : forall i,
+        wf_ty (TVar i).
 
     Hint Constructors wf_ty.
 
 Inductive tm : Set :=
     | tvar : id -> tm
-    | tnone : tyBase -> tm
+    | tnone : tm
     | tfun : id -> ty -> tm -> tm 
     | tapp : tm -> tm -> tm
     | tlet : id -> ty -> tm -> tm -> tm
@@ -66,7 +64,7 @@ Inductive tm : Set :=
             type information is 
             lexical scoped
         *)
-    | tletrcd : id -> tyid -> ty -> list (id* ty) -> tm -> tm
+    | tletrcd : id -> tyId -> ty -> list (id* ty) -> tm -> tm
         (*
             letRcd (contructorA TypeA ParentType ((a, Int) (b, Int))
             in ... 
@@ -78,6 +76,21 @@ Inductive tm : Set :=
             then i :: Int -> Int -> J
         *)
     | tfield : ty -> id -> tm.
+
+Fixpoint rcd_field_ty' (rcd: ty) (field : id) : option ty :=
+    match rcd with
+    | TRcons i head tail => if (eq_id_dec i field) then Some head else rcd_field_ty' tail field
+    | _ => None
+    end.
+
+Definition rcd_field_ty (rcd: ty) (h : only_rcd rcd) (h' : wf_ty rcd) (field : id) : option ty :=
+    rcd_field_ty' rcd field.    
+
+
+Definition subty_prop_weak (x y : ty) := 
+    forall T fid,
+        rcd_field_ty' y fid = Some T ->
+        exists T', rcd_field_ty' x fid = Some T'.
 
 
 Inductive subty  : ty -> ty -> Prop :=
@@ -114,4 +127,13 @@ Inductive subty  : ty -> ty -> Prop :=
                 subty t0 t2.
     
 Hint Constructors subty.
+
+Theorem subty_defined_well_weak :
+    forall x y,
+        subty x y ->
+        subty_prop_weak x y.
+
+    intros x y h. unfold subty_prop_weak.
+    induction h; intros; subst; eauto.
+    simpl in H3.
     
