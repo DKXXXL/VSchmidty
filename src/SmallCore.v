@@ -170,5 +170,5 @@ intros x y h;
 induction h; destructALL; subst; split; eauto.
 Qed.
 
-
+End SmallCore.
 
