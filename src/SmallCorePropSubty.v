@@ -11,7 +11,7 @@ Require Import Coq.ZArith.ZArith.
 Import SmallCore.SmallCore.
 Import Context.Context.
 
-Module SmallCoreProp.
+Module SmallCorePropSubty.
 
 
 
@@ -988,3 +988,5 @@ Theorem subty_dec:
     try (left; eauto; fail);
     try (right; eauto).
 Qed.
+
+End SmallCorePropSubty.
