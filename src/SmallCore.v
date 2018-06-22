@@ -50,6 +50,13 @@ Inductive wf_ty : ty -> Prop :=
 Inductive tm : Set :=
     | tvar : id -> tm
     | tnone : tm
+(* 
+    | tbox : tm -> tyId -> tm
+    | tunbox : tm -> tm
+    (* Primitivize and unprimitivize, key to Recursive type *)
+     *)
+
+
     | tfun : id -> ty -> tm -> tm 
     | tapp : tm -> tm -> tm
     | tlet : id -> ty -> tm -> tm -> tm
@@ -134,6 +141,34 @@ Theorem subty_defined_well_weak :
         subty_prop_weak x y.
 
     intros x y h. unfold subty_prop_weak.
-    induction h; intros; subst; eauto.
-    simpl in H3.
+    induction h; intros; subst; eauto;
+    simpl in *;
+
+    try(destruct (eq_id_dec i fid); subst; eauto; fail).
+    destruct (IHh2 _ _ H); eauto.
+Qed.
+
+Ltac destructALL :=
+repeat (
+    match goal with
+    | h0: _ \/ _ |- _ => destruct h0
+    | h0: _ /\ _ |- _ => destruct h0
+    | h0: exists _, _ |- _ => destruct h0
+    | h0: {_ | _} |- _ => destruct h0
+    | h0: {_} + {_} |- _ => destruct h0
+    | h0: _ + {_} |- _ => destruct h0
+    | h0: _ + _ |- _ => destruct h0
+    end
+).
+
+Theorem subty_wf:
+    forall x y,
+        subty x y ->
+        wf_ty x /\ wf_ty y.
     
+intros x y h;
+induction h; destructALL; subst; split; eauto.
+Qed.
+
+
+
