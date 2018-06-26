@@ -647,6 +647,46 @@ Lemma value_has_type_inver_tfun1:
     (* case tleft *)
  *)
 
+ 
+Ltac eli_dupli_wf_ty :=
+repeat (
+    match goal with
+    | w1 : wf_ty ?t, w2 : wf_ty ?t |- _ =>
+        poses' (wf_ty_indistinct t w1 w2);
+        subst
+    end
+).
+Ltac eli_dupli_orcd :=
+repeat (
+    match goal with
+    | w1 : only_rcd ?t, w2 : only_rcd ?t |- _ =>
+        poses' (orcd_indistinct t w1 w2);
+        subst
+    end
+).
+
+Ltac eli_dupli_wf_ty_orcd := eli_dupli_wf_ty; eli_dupli_orcd.
+
+Ltac constuct_orcd :=
+repeat match goal with
+| h0 : subty ?x ?y, h1 : only_rcd ?x |- _ => 
+    poses' (subty_rcd1 _ _ h1 h0);
+    glize h1 0
+| h0 : subty ?x ?y, h1 : only_rcd ?y |- _ =>
+    poses' (subty_rcd _ _ h1 h0);
+    glize h1 0
+end; intros.
+
+Ltac construct_wf_ty_and_orcd :=
+repeat match goal with
+| h0 : subty _ _ |- _ =>
+    destruct (subty_wf _ _ h0);
+    destructALL; glize h0 0
+| h0 : has_type _ _ ?T |- _ => 
+    poses' (has_type_well_formed _ _ _ h0);
+    destructALL; glize h0 0
+end; intros;constuct_orcd.
+
  Theorem preservation:
     forall t t' T,
         has_type empty t T ->
@@ -674,13 +714,22 @@ Lemma value_has_type_inver_tfun1:
                 end
             )
         end
-    ).
-    Focus 3.
-    forwards*: H0; destructALL; subst;  eauto. eexists; eauto. split. eapply ht_app; eauto.
-    (* case trcons *)
-    forwards*: H2; subst; eauto. 
-    destructALL. eexists; eauto. 
-    eapply ht_rcd; eauto.
+    );
+    try (
+        match goal with
+        | h0 : forall _, step ?x _ -> _, h1 : step ?x _ |- _ =>
+            forwards*: h0; subst; eauto; destructALL;  eauto
+        end
+    );
+    construct_wf_ty_and_orcd;
+    eli_dupli_wf_ty_orcd; 
+    eauto.
+    
+
+    (* Trcons *)
+    exists (TRcons i T x); split; eauto.
+    eapply ht_rcd; eauto. eapply subty_rcd1; eauto.
+    eapply subRcdd; eauto.
 
 
 
