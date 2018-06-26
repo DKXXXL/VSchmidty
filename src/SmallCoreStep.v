@@ -253,6 +253,8 @@ Theorem step_deterministic:
 
 Qed.
 
+End SmallCoreStep.
+
 
 
 
