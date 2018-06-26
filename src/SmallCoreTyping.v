@@ -667,14 +667,14 @@ repeat (
 
 Ltac eli_dupli_wf_ty_orcd := eli_dupli_wf_ty; eli_dupli_orcd.
 
-Ltac constuct_orcd :=
+Ltac construct_orcd :=
 repeat match goal with
 | h0 : subty ?x ?y, h1 : only_rcd ?x |- _ => 
     poses' (subty_rcd1 _ _ h1 h0);
-    glize h1 0
+    glize h0 0
 | h0 : subty ?x ?y, h1 : only_rcd ?y |- _ =>
     poses' (subty_rcd _ _ h1 h0);
-    glize h1 0
+    glize h0 0
 end; intros.
 
 Ltac construct_wf_ty_and_orcd :=
@@ -685,7 +685,7 @@ repeat match goal with
 | h0 : has_type _ _ ?T |- _ => 
     poses' (has_type_well_formed _ _ _ h0);
     destructALL; glize h0 0
-end; intros;constuct_orcd.
+end; intros;construct_orcd.
 
  Theorem preservation:
     forall t t' T,
@@ -715,21 +715,27 @@ end; intros;constuct_orcd.
             )
         end
     );
+    construct_wf_ty_and_orcd;
+    eli_dupli_wf_ty_orcd;
     try (
         match goal with
         | h0 : forall _, step ?x _ -> _, h1 : step ?x _ |- _ =>
             forwards*: h0; subst; eauto; destructALL;  eauto
         end
     );
-    construct_wf_ty_and_orcd;
-    eli_dupli_wf_ty_orcd; 
     eauto.
     
 
     (* Trcons *)
     exists (TRcons i T x); split; eauto.
     eapply ht_rcd; eauto. eapply subty_rcd1; eauto.
-    eapply subRcdd; eauto.
+    eapply subRcdd; eauto;
+    construct_wf_ty_and_orcd;
+    construct_orcd;
+    eli_dupli_wf_ty_orcd; eauto.
+
+    (* Tapp *)
+    
 
 
 
