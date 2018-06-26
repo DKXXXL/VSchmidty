@@ -399,32 +399,11 @@ Lemma subty_extrac_trcons1:
     destructALL. eauto.
 Qed.
 
-Theorem subty_rcd:
-    forall a b,
-        only_rcd b ->
-        subty a b ->
-        only_rcd a.
-    intros a b h0 h.
-    glize h0 0.
-    induction h; intros; subst; eauto.
-    inversion h0.
-    inversion h0.
-Qed.
+
     
     
 
-Theorem subty_rcd1:
-    forall T1 T2,
-        only_rcd T1 ->
-        subty T1 T2 ->
-        only_rcd T2.
 
-    intros T1 T2 h0 h.
-    glize h0 0.
-    induction h; intros; subst; eauto.
-    inversion h0.
-    inversion h0.
-Qed.
     
 Fixpoint struct_size' (t: ty) : nat :=
     match t with

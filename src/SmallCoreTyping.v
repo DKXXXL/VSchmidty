@@ -376,4 +376,275 @@ Lemma empty_typed_ctx_typed:
     eapply rce_symm; eauto.
 Qed.
 
+Ltac forwardALL :=
+    repeat (
+        match goal with
+        | h0 : _ -> _ |- _ =>
+            forwards*: h0; generalize dependent h0
+        end
+    ); intros.
 
+Theorem has_type_well_formed:
+    forall ctx t T,
+        has_type ctx t T ->
+        wf_ty T.
+    intros t T ctx h.
+    
+    induction h; try (intros; subst; eauto 10; fail); intros; subst.
+    inversion IHh1; subst; eauto.
+    inversion IHh3; subst; eauto.
+    unfold rcd_field_ty in *.
+    eapply wfFun; eauto.
+    eapply rcd_field_ty'_wf_is_wf; eauto.
+    cut (wf_ty T0 /\ wf_ty T1); try tauto; eauto.
+    eapply subty_wf; eauto.
+Qed.
+
+Lemma value_has_type_inver_tnone0 :
+    forall T,
+        has_type empty tnone T ->
+        T = TNone.
+    intros T h.
+    remember empty as ctx.
+    remember tnone as t.
+    glize Heqctx Heqt 0.
+    induction h; intros; subst; eauto; try discriminate.
+    forwards*:IHh; subst.
+    eapply subty_onlyrefl_tnone0; eauto.
+Qed.
+
+
+Lemma value_has_type_inver_trcons0:
+    forall i t0 t1 T,
+        has_type empty (trcons i t0 t1) T ->
+        only_rcd T.
+    intros i t0 t1 T h.
+    remember empty as ctx.
+    remember (trcons i t0 t1) as t.
+    glize i t0 t1 Heqctx 0.
+    induction h; intros; subst; eauto; try discriminate.
+    forwards: IHh; eauto. 
+    eapply subty_rcd1; eauto.
+Qed.
+
+
+Lemma value_has_type_inver_tsum0:
+    forall ctx lt RT w T,
+        has_type ctx (tleft lt RT w) T ->
+        exists TL TR,
+            T = TSum TL TR.
+
+    intros ctx lt RT w T h0.
+    remember (tleft lt RT w) as t.
+    glize lt RT 0.
+    induction h0; intros;subst; eauto;
+    try discriminate; try contradiction.
+    forwards :IHh0; subst; eauto.
+    destructALL; subst; eauto.
+    forwards: subty_extrac_tsum0; eauto; subst.
+Qed.
+
+Lemma value_has_type_inver_tsum1:
+    forall ctx LT w rt T,
+        has_type ctx (tright LT w rt) T ->
+        exists TL TR,
+            T = TSum TL TR.
+
+    intros ctx LT w rt T h0.
+    remember (tright LT w rt) as t.
+    glize LT rt 0.
+    induction h0; intros;subst; eauto;
+    try discriminate; try contradiction.
+    forwards :IHh0; subst; eauto.
+    destructALL; subst; eauto.
+    forwards: subty_extrac_tsum0; eauto; subst.
+Qed.
+
+
+Lemma value_has_type_inver_tsum11:
+    forall t,
+        value t ->
+        forall TL TR,
+        has_type empty t (TSum TL TR) ->
+        (exists w tl tr, t = tleft tl w tr) \/
+        (exists w tl tr, t = tright w tl tr).
+      
+    intros t h0 TL TR h.
+    remember empty as ctx;
+    remember (TSum TL TR) as H.
+    glize h0 Heqctx TL TR 0.
+    induction h; intros; subst; eauto; try discriminate;
+    try (
+        match goal with
+        | h : value _ |- _ =>
+            inversion h
+        end; fail
+    ).
+
+    forwards*: subty_extrac_tsum1.
+Qed.
+
+Lemma value_has_type_inver_tfun1:
+    forall t,
+        value t ->
+        forall iT oT,
+        has_type empty t (TFun iT oT) ->
+        (exists i T w body, t = tfun i T w body) \/ (exists T o w i, t = tfield T o w i).
+
+    intros t h0 iT oT H.
+    remember empty as ctx;
+    remember (TFun iT oT) as T'.
+    glize iT oT Heqctx h0 0.
+    induction H;intros; subst; eauto; try discriminate;
+    try (
+        match goal with
+        | h : value _ |- _ =>
+            inversion h
+        end; fail
+    ).
+
+    inversion HeqT'; subst; eauto. left; eauto.
+    inversion HeqT'; subst; eauto. right; eauto.
+    forwards*:subty_extrac_tfun1.
+Qed.
+
+Lemma value_has_type_inver_tfield0:
+    forall ctx T0 ort wft i T,
+        has_type ctx (tfield T0 ort wft i) T ->
+        (exists Ti To, 
+            T = TFun Ti To /\ only_rcd Ti /\ subty Ti T0).
+    intros ctx T0 ort wft i T h0.
+    remember (tfield T0 ort wft i) as t.
+    glize T0 i 0.
+    induction h0; intros;subst; eauto;
+    try discriminate; try contradiction.
+    inversion Heqt; subst; eauto.
+    repeat eexists; eauto.
+    forwards :IHh0; subst; eauto.
+    destructALL; subst; eauto.
+    forwards: subty_extrac_tfun0; eauto; subst.
+    destructALL; subst. forwards*: subty_extra_tfun;destructALL; subst; eauto. 
+    repeat exists. repeat split; eauto. eapply subty_rcd; eauto.
+Qed.
+
+Lemma value_has_type_inver_trcd1:
+    forall t,
+        value t ->
+        forall T,
+        has_type empty t T ->
+        only_rcd T ->
+        wf_ty T ->
+        t = tnone \/ exists i th tt, t = trcons i th tt.
+    intros t h T H.
+    remember empty as ctx.
+    glize h Heqctx 0.
+    induction H; intros; subst; eauto;
+    try discriminate;
+    try (
+        match goal with
+        | h: value _ |- _ =>
+            inversion h; subst; eauto; fail
+        | h: only_rcd _ |- _ =>
+            inversion h; subst; eauto
+        end;
+        fail
+    ).
+    forwards*:IHhas_type. eapply subty_rcd; eauto.
+    destruct (subty_wf _ _ H0); eauto.
+Qed.
+
+Lemma tfield_never_none:
+    forall ctx x y z T,
+        ~has_type ctx (tfield TNone x y z) T.
+    
+    intros ctx x y z T h.
+    remember (tfield TNone x y z) as t.
+    glize x y z 0.
+    induction h; intros; subst; eauto ;try discriminate.
+    inversion Heqt; subst; eauto.
+    unfold rcd_field_ty in H. simpl in H; try discriminate.
+Qed.
+
+Theorem progress:
+    forall t T,
+        has_type empty t T ->
+        value t \/ (exists t', step t t').
+
+intros t T h.
+remember empty as ctx.
+glize Heqctx 0.
+induction h; intros; subst; eauto; try discriminate;
+repeat ( (* Remove Unnecessary assumption*)
+    match goal with
+    | h0 : ?x = ?x -> _ |- _ => 
+        poses' (h0 eq_refl); clear h0
+    end 
+);
+try (
+    destructALL;
+    try (
+        left; eauto; fail
+    );
+    try (
+        right; eexists; eauto; fail
+    )
+).
+    (* case tapp *)
+    destruct (value_has_type_inver_tfun1 _ H _ _ h1);
+    destructALL; subst; eauto.
+        (* case tfield*)
+        right. destruct (value_has_type_inver_tfield0 _ _ _ _ _ _ h1); destructALL; subst.
+        inversion H1; subst. inversion H2; subst; eauto.
+        poses' (subty_onlyrefl_tnone0 _ H3); subst.
+        destruct (tfield_never_none _ _ _ _ _ h1).
+        edestruct (value_has_type_inver_trcd1); eauto.
+        cut (wf_ty(TRcons i T T') /\ wf_ty x); try tauto.
+        eapply subty_wf; eauto; subst.
+        subst.
+        poses' (value_has_type_inver_tnone0 _ h2). try discriminate.
+        destructALL. subst.
+        destruct (eq_id_dec x2 x3); subst; eauto.
+
+    (* case tcase*)
+    right.
+
+    forwards*:( value_has_type_inver_tsum11 crit).
+    destructALL; subst; eexists; eauto; inversion H; subst; eauto.
+Qed.
+
+(* 
+
+Lemma value_has_type_inver_tfun1:
+    forall t T0 T1,
+    value t ->
+        has_type empty t (TFun T0 T1) ->
+        exists i T h body, t = tfun i T h body.
+    
+    intros t T0 T1 h.
+    remember empty as ctx.
+    remember (TFun T0 T1) as T.
+    glize T0 T1 Heqctx 0.
+    induction h; intros; subst; eauto; try discriminate;
+    try (
+        match goal with
+        | h0 : value _ |- _ =>
+            inversion h0; subst ;eauto; try discriminate; fail
+        end
+    );
+    repeat ( (* Remove Unnecessary assumption*)
+    match goal with
+    | h0 : ?x = ?x -> _ |- _ => 
+        poses' (h0 eq_refl); clear h0
+    end 
+).
+
+    (* case tnone *)
+    poses' (value_has_type_inver_tnone0 _ H). try discriminate.
+
+    (* case trcons *)
+    poses' (value_has_type_inver_trcons0 _ _ _ _ H). inversion H2.
+
+    (* case tleft *)
+ *)
+
+ 

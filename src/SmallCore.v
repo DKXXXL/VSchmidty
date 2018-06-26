@@ -207,6 +207,31 @@ Inductive subty  : ty -> ty -> Prop :=
     
 Hint Constructors subty.
 
+Theorem subty_rcd:
+    forall a b,
+        only_rcd b ->
+        subty a b ->
+        only_rcd a.
+    intros a b h0 h.
+    generalize dependent h0.
+    induction h; intros; subst; eauto.
+    inversion h0.
+    inversion h0.
+Qed.
+
+Theorem subty_rcd1:
+    forall T1 T2,
+        only_rcd T1 ->
+        subty T1 T2 ->
+        only_rcd T2.
+
+    intros T1 T2 h0 h.
+    generalize dependent h0.
+    induction h; intros; subst; eauto.
+    inversion h0.
+    inversion h0.
+Qed.
+
 Theorem subty_defined_well_weak :
     forall x y,
         subty x y ->
@@ -221,15 +246,39 @@ Theorem subty_defined_well_weak :
 Qed.
 
 Inductive record_field_unique : ty -> Prop :=
+    | rfu_var : forall i,  record_field_unique (TVar i)
     | rfu_none : record_field_unique TNone
     | rfu_rcons : forall i t T,
         record_field_unique T ->
         rcd_field_ty' T i = None ->
-        record_field_unique (TRcons i t T).
+        record_field_unique (TRcons i t T)
+    | rfu_fun : 
+        forall x y, 
+        record_field_unique x ->
+        record_field_unique y ->
+        record_field_unique (TFun x y)
+    | rfu_sum : 
+        forall x y, 
+        record_field_unique x ->
+        record_field_unique y ->
+        record_field_unique (TSum x y).
 
 Hint Constructors record_field_unique.
 
 Notation "'RFU'" := record_field_unique.
+
+Ltac destructALL :=
+repeat (
+    match goal with
+    | h0: _ \/ _ |- _ => destruct h0
+    | h0: _ /\ _ |- _ => destruct h0
+    | h0: exists _, _ |- _ => destruct h0
+    | h0: {_ | _} |- _ => destruct h0
+    | h0: {_} + {_} |- _ => destruct h0
+    | h0: _ + {_} |- _ => destruct h0
+    | h0: _ + _ |- _ => destruct h0
+    end
+).
 
 Theorem RFU_dec :
     forall T,
@@ -239,6 +288,11 @@ Theorem RFU_dec :
     induction T; subst; eauto;
     try (
         right; intros CCC; inversion CCC; fail
+    );
+    try (
+        destructALL;
+        try (left; eauto; fail);
+        try (right; intros CCC; inversion CCC; try contradiction; try discriminate); fail
     ).
     (* case TRcons*)
     destruct IHT1; destruct IHT2;
@@ -273,6 +327,7 @@ Qed.
 Theorem RFU_trans:
     forall x y,
         subty x y ->
+        only_rcd x ->
         RFU x ->
         RFU y.
 
@@ -281,25 +336,35 @@ Theorem RFU_trans:
     try (match goal with
         | hh : RFU _ |- _ => inversion hh; subst; eauto ; try discriminate; fail
         end; fail
+    );
+    try (
+        match goal with
+        | hh: only_rcd _ |- _ => inversion hh; subst; eauto; try contradiction;try discriminate; fail
+        end
     ).
-    inversion H3; subst; eauto.
-    poses' (IHh2 H6). 
+
+    inversion H4; subst; eauto.
+    poses' (IHh2 H0 H7). 
     eapply rfu_rcons; eauto.
     eapply subty_prop_weak'; eauto.
+    eapply IHh2; eauto.
+    eapply subty_rcd1; eauto.
+
 Qed.
 
 
 Theorem subty_defined_well_strong:
     forall x y,
         subty x y ->
+        only_rcd x ->
         RFU x ->
         forall T fid,
             rcd_field_ty' y fid = Some T ->
             exists T', rcd_field_ty' x fid = Some T' /\ subty T' T.
 
-    intros x y h h0.
+    intros x y h h0 h1.
     assert (RFU y); try eapply RFU_trans; eauto.
-    generalize dependent h0; generalize dependent H.
+    generalize dependent h0; generalize dependent H. generalize dependent h1.
     induction h;intros; subst; eauto;
     try (simpl in *; try discriminate; try contradiction; fail).
     (* case subRcdw *)
@@ -308,9 +373,10 @@ Theorem subty_defined_well_strong:
     inversion H4; subst; eauto.
 
     (* case subRcdd *)
-    simpl in *. inversion h0; subst; eauto.
+    simpl in *. inversion h1; subst; eauto.
     destruct (eq_id_dec i fid); subst; eauto; try discriminate.
-    destruct (IHh H4 H8 _ _ H5).
+    inversion h0; subst; eauto.
+    destruct (IHh H8 H4 H7 _ _ H5).
     rewrite H10 in *; try contradiction; try discriminate.
     destruct H6; try discriminate.
 
@@ -319,10 +385,11 @@ Theorem subty_defined_well_strong:
     eapply subRefl. eapply rcd_field_ty'_wf_is_wf; eauto.
     (* case subTrans*)
     assert (RFU t1); try eapply RFU_trans; eauto.
-    destruct (IHh2 H H1 _ _ H0).
-    destruct H2.
-    destruct (IHh1 H1 h0 _ _ H2); eauto.
-    destruct H4.
+    poses' (subty_rcd1 _ _ h3 h1).
+    destruct (IHh2 H1 H H2 _ _ H0).
+    destruct H3.
+    destruct (IHh1 h0 H1 h3 _ _ H3); eauto.
+    destruct H5.
     eauto.
 Qed.
 
@@ -331,18 +398,7 @@ Qed.
 
 
 
-Ltac destructALL :=
-repeat (
-    match goal with
-    | h0: _ \/ _ |- _ => destruct h0
-    | h0: _ /\ _ |- _ => destruct h0
-    | h0: exists _, _ |- _ => destruct h0
-    | h0: {_ | _} |- _ => destruct h0
-    | h0: {_} + {_} |- _ => destruct h0
-    | h0: _ + {_} |- _ => destruct h0
-    | h0: _ + _ |- _ => destruct h0
-    end
-).
+
 
 Theorem subty_wf:
     forall x y,
