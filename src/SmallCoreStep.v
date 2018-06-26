@@ -253,6 +253,19 @@ Theorem step_deterministic:
 
 Qed.
 
+Theorem value_dec:
+    forall x,
+        {value x} + {~value x}.
+
+    intros x.
+    induction x; intros; subst; eauto; try discriminate;
+    destructALL;
+    try (left; eauto; fail);
+    try (right; intros CCC; inversion CCC; try discriminate; try contradiction; fail).
+
+Qed.
+
+
 End SmallCoreStep.
 
 

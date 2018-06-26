@@ -647,4 +647,40 @@ Lemma value_has_type_inver_tfun1:
     (* case tleft *)
  *)
 
- 
+ Theorem preservation:
+    forall t t' T,
+        has_type empty t T ->
+        step t t' ->
+        (exists T', has_type empty t' T' /\ subty T T').
+
+
+    intros t t' T h.
+    remember empty as ctx.
+    glize t' Heqctx 0.
+    induction h;intros; subst; eauto; try discriminate;
+    repeat (
+        match goal with
+        | hh : ?x = ?x -> _ |- _ => poses' (hh eq_refl); clear hh
+        end
+    );
+    try (
+        match goal with
+        | h : step _ _ |- _ => 
+            inversion h; subst; eauto;
+            try (
+                match goal with
+                | HH : _ -> _ |- _=> 
+                    forwards*: HH; destructALL; eexists;split; subst;  eauto; fail
+                end
+            )
+        end
+    ).
+    Focus 3.
+    forwards*: H0; destructALL; subst;  eauto. eexists; eauto. split. eapply ht_app; eauto.
+    (* case trcons *)
+    forwards*: H2; subst; eauto. 
+    destructALL. eexists; eauto. 
+    eapply ht_rcd; eauto.
+
+
+
