@@ -59,9 +59,13 @@ Inductive has_type : Context (type := {x : ty | wf_ty x}) -> tm -> ty -> Prop :=
     has_type ctx (tfield T0 h0 h1 i) (TFun T0 T)
 | ht_subty: forall ctx t T0 T1,
     has_type ctx t T0 ->
-    forall (h:subty T0 T1),
-    well_inherited h ->
+    subty T0 T1 ->
+    RFU T0 ->
     T0 <> T1 ->
     has_type ctx t T1.
 
+
+
 Hint Constructors has_type.
+
+End SmallCoreTyping.

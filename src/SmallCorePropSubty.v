@@ -15,59 +15,6 @@ Module SmallCorePropSubty.
 
 
 
-Axiom wf_ty_indistinct:
-    forall T (t1 t2: wf_ty T),
-        t1 = t2.
-
-Axiom orcd_indistinct:
-    forall T (t1 t2: only_rcd T),
-        t1 = t2.
-
-    
-Theorem only_rcd_dec:
-    forall T,
-        only_rcd T + {only_rcd T -> False}.
-    
-    intros.
-    induction T; subst; eauto;
-    try (
-        left; eauto; fail
-    );
-    try (right; intro h0; inversion h0; eauto; fail).
-    destruct IHT1; destruct IHT2; subst; eauto;
-    try(
-        right; intro h0; inversion h0; subst; eauto; fail
-    ).
-Qed.
-
-Theorem wf_ty_dec :
-    forall T,
-        {wf_ty T} + {~wf_ty T}.
-    
-    intros T.
-    induction T; subst; eauto;
-    
-        repeat (match goal with
-                | h0 : {_} + {_} |- _ => destruct h0; subst; eauto
-                end);
-    try (
-        try(
-            left; eauto; fail
-        );
-        try(
-            right; intro h0; inversion h0; subst; eauto; fail
-        );
-        fail
-    ).
-    destruct (only_rcd_dec T2);
-    try(
-        left; eauto; fail
-    );
-    try(
-        right; intro h0; inversion h0; subst; eauto; fail
-    ).
-Qed.
-
 Lemma type_not_rec_fun0:
     forall T1 T2,
         T1 <> TFun T1 T2.
