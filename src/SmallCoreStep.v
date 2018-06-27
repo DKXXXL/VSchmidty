@@ -17,6 +17,53 @@ Import Context.Context.
 Module SmallCoreStep.
 
 
+
+Parameter ExttmInterpreter :
+    forall (I O : Extty),
+        forall (f x : Ext),
+        f ==e ExttyInterpreter (ETFun I O) ->
+        x ==e ExttyInterpreter I ->
+        { y : Ext | y ==e ExttyInterpreter O}.
+
+
+Parameter ExttmRep:
+    forall (x: Ext),
+        {y : Extty | x = ExttyInterpreter y}.
+
+Parameter Exteq_refl :
+    forall x, x ==e x.
+Parameter Exteq_symm:
+    forall x y, x ==e y -> y ==e x.
+Parameter Exteq_trans:
+    forall x y z, 
+        x ==e y ->
+        y ==e z ->
+        x ==e z.
+Parameter Exteqeq:
+    forall x y,
+        forall (h0 h1: x ==e y),
+        h0 = h1.
+
+Hint Resolve ExttyInterpreter ExttmInterpreter ExttmRep Exteq_refl Exteq_symm Exteq_trans.
+
+
+(* Definition eintp :
+    forall (I O : Extty),
+    forall (f x : Ext),
+    f ==e ExttyInterpreter (ETFun I O) ->
+    x ==e ExttyInterpreter I ->
+    Extty.
+    intros.
+    poses' (ExttmInterpreter _ _ _ _ H H0).
+    destruct H1.
+    destruct (ExttmRep x0).
+    exact x1.
+Defined. *)
+Notation "'eintp'" := ExttmInterpreter.
+
+
+
+
 Inductive value : tm -> Prop :=
     | vNone : value tnone
     | vRcons : forall i t0 t1,
@@ -32,7 +79,9 @@ Inductive value : tm -> Prop :=
                 value t ->
                 value (tright T wft t)
     | vfield : forall T ort wft id,
-                value (tfield T ort wft id).
+                value (tfield T ort wft id)
+    | vext : forall T t h,
+                value (text T t h).
 
 Hint Constructors value.
 
@@ -64,7 +113,11 @@ Fixpoint subst (i : id) (rep : tm) (org : tm) : tm :=
 (* Open Scope Int_scope. *)
 (*Check Nat.eqb.*)
 
-
+Fixpoint rcd_field_tm' (rcd: tm) (field : id) : option tm :=
+    match rcd with
+    | trcons i head tail => if (eq_id_dec i field) then Some head else rcd_field_tm' tail field
+    | _ => None
+    end.
 
 Inductive step : tm -> tm -> Prop :=
     | strcons0:
@@ -137,19 +190,19 @@ Inductive step : tm -> tm -> Prop :=
             value rb ->
             step (tcase (tright LT w0 rt) lb rb)
                     (tapp rb rt)
-    | stfield0 :
-        forall T orcd w i j head tail,
-            value (trcons j head tail) ->
-            i <> j ->
-            step (tapp (tfield T orcd w i) (trcons j head tail)) (tapp (tfield T orcd w i) tail)  
-    | stfield1 :
-        forall T orcd w i head tail,
-            value (trcons i head tail) ->
-            step (tapp (tfield T orcd w i) (trcons i head tail)) head.
+    | stfield :
+        forall T orcd w i rcd t,
+            value rcd ->
+            rcd_field_tm' rcd i = Some t ->
+            step (tapp (tfield T orcd w i) rcd) t
+    | stext :
+        forall I O f x h0 h1,
+            step (tapp (text (ETFun I O) f h0) (text I x h1)) 
+                 (match (eintp I O f x h0 h1) with | exist _ o h => text O o h end ).
     Hint Constructors step.
 
 
-    Ltac eli_dupli_wf_ty :=
+Ltac eli_dupli_wf_ty :=
     repeat (
         match goal with
         | w1 : wf_ty ?t, w2 : wf_ty ?t |- _ =>
@@ -166,7 +219,16 @@ Ltac eli_dupli_orcd :=
         end
     ).
 
-Ltac eli_dupli_wf_ty_orcd := eli_dupli_wf_ty; eli_dupli_orcd.
+Ltac eli_dupli_exteq :=
+repeat (
+    match goal with
+    | w1 : ?t ==e ?q, w2 : ?t ==e ?q |- _ =>
+        poses' (Exteqeq _ _ w1 w2);
+        subst
+    end
+).
+
+Ltac eli_dupli_wf_ty_orcd := eli_dupli_wf_ty; eli_dupli_orcd; eli_dupli_exteq.
 
 
 Lemma value_no_step :
@@ -229,7 +291,11 @@ Theorem step_deterministic:
         | h0 : step (tfield ?T ?ort ?wft ?i) _ |- _ =>
             poses' (vfield T ort wft i)
     end;
-    
+    try 
+    match goal with
+        | h0 : step (text ?T ?t ?h) _ |- _ =>
+            poses' (vext T t h)
+    end;
     try (match goal with
         | h0 : ?x <> ?x |- _ => destruct (h0 eq_refl)
         end
@@ -251,6 +317,8 @@ Theorem step_deterministic:
         eli_dupli_wf_ty_orcd; eauto
     ).
 
+    (* case tfield *)
+    rewrite H0 in *. inversion H7; eauto.
 Qed.
 
 Theorem value_dec:

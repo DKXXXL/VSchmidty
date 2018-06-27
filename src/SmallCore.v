@@ -25,6 +25,16 @@ Inductive ty : Set :=
 
 Hint Constructors ty.
 
+Inductive Extty : Set :=
+    | ETVar : tyId  -> Extty
+    | ETFun : Extty -> Extty -> Extty.
+
+Parameter Ext : Set.
+Parameter ExttyInterpreter : Extty -> Ext.
+Parameter Exteq : Ext -> Ext -> Prop.
+Notation "x '==e' y" := (Exteq x y) (at level 40).
+
+
 Inductive only_rcd : ty -> Prop :=
     | orcdBase : only_rcd TNone
     | orcdRcd : forall i T T',
@@ -48,7 +58,7 @@ Inductive wf_ty : ty -> Prop :=
     Hint Constructors wf_ty.
 
 
-    Axiom wf_ty_indistinct:
+Axiom wf_ty_indistinct:
     forall T (t1 t2: wf_ty T),
         t1 = t2.
 
@@ -122,6 +132,10 @@ Inductive tm : Set :=
     | tright: forall (T : ty),  wf_ty T -> tm -> tm
     | tcase : tm -> tm -> tm -> tm 
     | trcons : id -> tm -> tm -> tm
+    | text : forall (T : Extty), 
+                forall (t : Ext),
+                 t ==e ExttyInterpreter T -> tm
+        (* extension *)
         (*
             tcase (\ x -> x) (\ y -> y)
         *)
