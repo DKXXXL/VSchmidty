@@ -735,7 +735,7 @@ Lemma record_has_type_has_field:
     (* case ht_rcd *)
     simpl in *.
     destruct (eq_id_dec i i0); subst; eauto; try discriminate.
-    inversion H0; subst; eauto.
+    inversion H2; subst; eauto.
 
     (* case ht_ext*)
     destruct (extty_inver T);destructALL; 
@@ -743,14 +743,10 @@ Lemma record_has_type_has_field:
     simpl in *; try discriminate; eauto.
 
     (* case ht_sub*)
-    destruct (only_rcd_dec T1); subst; eauto.
-    assert (only_rcd T0); eauto. eapply subty_rcd; eauto.
     
-    poses' (subty_defined_well_strong _ _ H H0 _ _ H3); destructALL.
-    eapply H4; eauto.
-    construct_wf_ty_and_orcd; eauto.
-    poses' (rcd_field_ty'_wf_is_onlyrcd _ _ _ H6 H3).
-    try contradiction.
+    poses' (subty_defined_well_strong_orfu _ _ H H0 _ _ H4); destructALL.
+    eapply H5; eauto.
+
 
 Qed.
 
@@ -763,7 +759,6 @@ Qed.
 Theorem progress:
     forall t T,
         has_type empty t T ->
-        RFU T ->
         value t \/ (exists t', step t t').
 
 intros t T h.
@@ -778,21 +773,17 @@ repeat ( (* Remove Unnecessary assumption*)
 );
 try (
     destructALL;
-    try (match goal with
-    | h : RFU (_ _) |- _ => inversion h; subst; eauto
-    end);
     forwardALL;
     try (
         left; eauto; fail
     );
     try (
         right; eexists; eauto; fail
-    ); fail
+    )
 ).
-    (* case trcons *)
-    inversion H0; subst; eauto. forwardALL.
+    
     (* case tapp *)
-    destruct (value_has_type_inver_tfun1 _ H _ _ h1);
+    poses' (value_has_type_inver_tfun1 _ H _ _ h1);
     destructALL; subst; eauto.
         (* case tfield*)
         right.
