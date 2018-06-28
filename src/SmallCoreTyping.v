@@ -22,10 +22,10 @@ Module SmallCoreTyping.
 Fixpoint extty_to_ty (extty : Extty) : ty.
     destruct extty.
     exact (TVar t).
-    exact (TFun (extty_to_ty extty1) (extty_to_ty extty2)).
+    exact (TFun (TVar t) (extty_to_ty extty)).
 Defined.
 
-
+Print extty_to_ty.
 
 Theorem extty_orfu:
     forall T,
@@ -609,10 +609,12 @@ Lemma value_has_type_inver_tfield0':
     forall ctx T0 ort wft i T,
         has_type ctx (tfield T0 ort wft i) T ->
         (exists Ti To, 
-            T = TFun Ti To 
+            (T = TFun Ti To 
             /\ only_rcd Ti 
-            /\ subty Ti T0
-            /\ exists T', rcd_field_ty' T0 i = Some T').
+            /\ subty Ti T0)
+        /\ exists T', rcd_field_ty' T0 i = Some T'
+        /\ orfu T0
+        ).
     intros ctx T0 ort wft i T h0.
     remember (tfield T0 ort wft i) as t.
     glize T0 i 0.
@@ -673,6 +675,82 @@ Lemma tfield_never_none:
 Qed.
 
 
+Lemma subty_onlyrefl_text:
+    forall T T',
+        (subty (extty_to_ty T) T') \/ subty T' (extty_to_ty T) ->
+        T' = extty_to_ty T.
+
+
+    induction T; intros; subst; simpl in *; eauto;
+    destructALL.
+    (* case TVar *)
+    forwards*: subty_onlyrefl_TVar0; eauto.
+    forwards*: subty_onlyrefl_TVar1; eauto.
+    (* case TFun *)
+    forwards*: subty_extrac_tfun0; eauto; destructALL; subst; eauto.
+        forwards*: subty_extra_tfun; destructALL; subst; eauto.
+        forwards*: subty_onlyrefl_TVar1; eauto.
+        forwardALL; subst; eauto.
+    forwards*: subty_extrac_tfun1; eauto; destructALL; subst; eauto.
+        forwards*: subty_extra_tfun; destructALL; subst; eauto.
+        forwards*: subty_onlyrefl_TVar0; eauto.
+        forwardALL; subst; eauto.
+Qed.
+
+    
+
+
+
+Lemma value_has_type_inver_text0:
+    forall T t h T',
+        has_type empty (text T t h) T' ->
+        T' = extty_to_ty T.
+
+    intros T t h0 T' h.
+    remember empty as ctx.
+    remember (text T t h0) as x.
+    glize T t Heqctx 0.
+    induction h; intros; subst; eauto; try discriminate.
+
+    inversion Heqx; subst; eauto.
+    edestruct H2.
+    forwards*: IHh; subst; eauto.
+    symmetry. eapply subty_onlyrefl_text; eauto.
+Qed.
+
+Lemma value_has_type_inver_text1:
+    forall t T,
+        has_type empty t (extty_to_ty T) ->
+        exists x h0, t = text T x h0.
+
+    intros t T.
+    glize t 0.
+    induction T; intros; simpl in *; subst; eauto.
+    Focus 2.
+
+
+Abort.
+    
+Lemma value_has_type_inver_TVar1:  
+    forall t I,
+        has_type empty t (TVar I) ->
+        value t ->
+        exists x h0, t = text (ETVar I) x h0.
+
+    intros t I h.
+    remember empty as ctx.
+    remember (TVar I) as T.
+    glize I Heqctx 0.
+    induction h; intros; subst; eauto; try discriminate;
+    try (match goal with
+        | h : value _ |- _ => inversion h; subst; eauto; try discriminate; fail
+        end
+    ).
+    destruct T; simpl in *; try discriminate.
+    inversion HeqT; subst; eauto.
+    
+    edestruct H2. eapply subty_onlyrefl_TVar1; eauto.
+Qed.
 
 Ltac eli_dupli_wf_ty :=
 repeat (
@@ -779,37 +857,60 @@ try (
     );
     try (
         right; eexists; eauto; fail
-    )
+    ); fail
 ).
-    
+
+
     (* case tapp *)
+    destructALL;
+    forwardALL;
+    try (
+        left; eauto; fail
+    );
+    try (
+        right; eexists; eauto; fail
+    ).
     poses' (value_has_type_inver_tfun1 _ H _ _ h1);
     destructALL; subst; eauto.
         (* case tfield*)
         right.
         forwards*: value_has_type_inver_tfield0'; destructALL; subst; eauto.
         inversion H1; subst; eauto.
+        assert (orfu x3); eauto. eapply has_type_orfu; eauto.
+        assert (has_type empty t1 x); eauto.
+            destruct (eq_ty_dec x x3); subst; eauto.
+        forwards*: (record_has_type_has_field); destructALL. 
 
-        assert (has_type empty t1 x); eauto. 
-        
-        destruct (value_has_type_inver_tfield0 _ _ _ _ _ _ h1); destructALL; subst.
-        inversion H1; subst. inversion H2; subst; eauto.
-        poses' (subty_onlyrefl_tnone0 _ H3); subst.
-        destruct (tfield_never_none _ _ _ _ _ h1).
-        construct_wf_ty_and_orcd; eli_dupli_wf_ty_orcd.
-        edestruct (value_has_type_inver_trcd1); subst; eauto. subst.
-        (* cut (wf_ty(TRcons i T T') /\ wf_ty x); try tauto.
-        eapply subty_wf; eauto; subst.
-        subst. *)
-        poses' (value_has_type_inver_tnone0 _ h2). try discriminate.
-        destructALL. subst.
-        destruct (eq_id_dec x2 x3); subst; eauto.
+        (* case text *)
+        right.
+        forwards*: value_has_type_inver_text0; eauto.
+        destruct x; subst; eauto; try discriminate.
+        simpl in *; eauto.
+        inversion H1; subst; eauto.
+        forwards*: value_has_type_inver_TVar1; eauto; destructALL; subst; eauto.
+    (* case tlet *)
+    clear IHh2.
+    destructALL;
+    forwardALL; eauto.
 
-    (* case tcase*)
+    (* case tcase *)
+    destructALL;
+    forwardALL;
+    try (
+        left; eauto; fail
+    );
+    try (
+        right; eexists; eauto; fail
+    ).
     right.
 
-    forwards*:( value_has_type_inver_tsum11 crit).
-    destructALL; subst; eexists; eauto; inversion H; subst; eauto.
+    forwards*: (value_has_type_inver_tsum11 _ H); eauto.
+    destructALL;subst; eauto;
+    try (
+        match goal with
+        | h : value (_ _) |- _ => inversion h; subst; eauto; fail
+        end
+    ).
 Qed.
 
 

@@ -27,7 +27,7 @@ Hint Constructors ty.
 
 Inductive Extty : Set :=
     | ETVar : tyId  -> Extty
-    | ETFun : Extty -> Extty -> Extty.
+    | ETFun : tyId -> Extty -> Extty. (* No higher order Function*)
 
 Parameter Ext : Set.
 Parameter ExttyInterpreter : Extty -> Ext.

@@ -19,10 +19,10 @@ Module SmallCoreStep.
 
 
 Parameter ExttmInterpreter :
-    forall (I O : Extty),
+    forall (i : tyId) (O : Extty),
         forall (f x : Ext),
-        f ==e ExttyInterpreter (ETFun I O) ->
-        x ==e ExttyInterpreter I ->
+        f ==e ExttyInterpreter (ETFun i O) ->
+        x ==e ExttyInterpreter (ETVar i) ->
         { y : Ext | y ==e ExttyInterpreter O}.
 
 
@@ -196,9 +196,9 @@ Inductive step : tm -> tm -> Prop :=
             rcd_field_tm' rcd i = Some t ->
             step (tapp (tfield T orcd w i) rcd) t
     | stext :
-        forall I O f x h0 h1,
-            step (tapp (text (ETFun I O) f h0) (text I x h1)) 
-                 (match (eintp I O f x h0 h1) with | exist _ o h => text O o h end ).
+        forall i O f x h0 h1,
+            step (tapp (text (ETFun i O) f h0) (text (ETVar i) x h1)) 
+                 (match (eintp i O f x h0 h1) with | exist _ o h => text O o h end ).
     Hint Constructors step.
 
 
