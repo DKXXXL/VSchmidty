@@ -82,6 +82,27 @@ Theorem subty_defined_well_strong_orfu:
     eapply subty_defined_well_strong_ORFU; eauto.
 Qed.
 
+Lemma not_only_rcd_orfu:
+    forall T,
+        ~only_rcd T ->
+        orfu T.
+    intros T;
+    induction T;intros; subst; eauto; try discriminate; try contradiction.
+Abort.
+
+Theorem RFU_orfu:
+    forall T,
+        RFU T ->
+        orfu T.
+    intros T;
+    induction T; intros; subst; eauto;
+    try (
+        match goal with
+        | h : RFU _ |- _ => inversion h; subst; eauto
+        end
+    ).
+    eapply orfu_trcons; eauto.
+Abort.
 
 
 End SmallCoreORFU.

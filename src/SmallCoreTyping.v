@@ -43,6 +43,7 @@ Inductive has_type : Context (type := {x : ty | wf_ty x}) -> tm -> ty -> Prop :=
         has_type ctx t0 T ->
         has_type ctx t1 T' ->
         orfu T' ->
+        only_rcd T' ->
         rcd_field_ty' T' i = None ->
         has_type ctx (trcons i t0 t1) (TRcons i T T')
 | ht_var: forall ctx T i (h: wf_ty T),
@@ -446,9 +447,13 @@ Theorem has_type_well_formed:
         wf_ty T.
     intros t T ctx h.
     
-    induction h; try (intros; subst; eauto 10; fail); intros; subst.
-    inversion IHh1; subst; eauto.
-    inversion IHh3; subst; eauto.
+    induction h; try (intros; subst; eauto 10; fail); intros; subst;
+    try (
+        match goal with
+        | h: wf_ty (_ _ ) |- _ => inversion h; subst; eauto
+        end; fail
+    ).
+
     unfold rcd_field_ty in *.
     eapply wfFun; eauto.
     eapply rcd_field_ty'_wf_is_wf; eauto.
@@ -458,13 +463,6 @@ Theorem has_type_well_formed:
     eapply subty_wf; eauto.
 Qed.
 
-Theorem has_type_RFU:
-    forall ctx t T,
-        has_type ctx t T ->
-        RFU T.
-
-    intros ctx t T.
-Abort.
 
 
 
