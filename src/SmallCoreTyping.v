@@ -32,10 +32,12 @@ Inductive has_type : Context (type := {x : ty | wf_ty x}) -> tm -> ty -> Prop :=
     forall ctx i t0 t1 T T',
         has_type ctx t0 T ->
         has_type ctx t1 T' ->
-        only_rcd T' ->
+        RFU T' ->
+        rcd_field_ty' T' i = None ->
         has_type ctx (trcons i t0 t1) (TRcons i T T')
 | ht_var: forall ctx T i (h: wf_ty T),
     byContext ctx i = Some (exist _ T h) ->
+    ORFU T ->
     has_type ctx (tvar i) T
 | ht_fun : forall ctx i T body TO (h: wf_ty T),
     has_type (update i (exist _ T h) ctx) body TO ->
@@ -70,7 +72,7 @@ Inductive has_type : Context (type := {x : ty | wf_ty x}) -> tm -> ty -> Prop :=
 | ht_subty: forall ctx t T0 T1,
     has_type ctx t T0 ->
     subty T0 T1 ->
-    RFU T0 ->
+    ORFU T0 ->
     T0 <> T1 ->
     has_type ctx t T1.
 
@@ -224,7 +226,7 @@ Theorem ctx_change:
     fail).
 
     (* case tvar*)
-    poses' (H0 i). forwards: H1; eauto.
+    forwards: H1; eauto.
     pattern (byContext ctx i) in H.
     rewrite H2 in H. eauto.
 
@@ -367,8 +369,8 @@ Theorem ctx_eq_rewrite:
     intros U V t T h0;
     glize V 0.
     induction h0; subst; eauto.
-    intros. poses' (CtxEq_byCtxEq _ _ H0).
-    eapply ht_var. rewrite <- H1. eauto.
+    intros. poses' (CtxEq_byCtxEq _ _ H1).
+    eapply ht_var. rewrite <- H2. eauto. eauto.
 Qed.
 
 
@@ -399,6 +401,20 @@ Lemma Extty_well_formed:
         wf_ty (extty_to_ty T).
     induction T; intros; simpl in *; eauto; subst.
 Qed.
+
+Theorem has_type_ORFU:
+    forall ctx t T,
+        has_type ctx t T ->
+        ORFU T.
+
+    intros ctx t T h.
+    induction h; intros; try intro; subst; 
+    try match goal with
+        | h : only_rcd _ |- _ => inversion h; subst; eauto; try discriminate; try contradiction; fail
+    end.
+    Focus 2.
+
+    Focus 4.
 
 Theorem has_type_well_formed:
     forall ctx t T,
