@@ -33,6 +33,7 @@ Inductive orfu : ty -> Prop :=
             orfu x ->
             orfu y ->
             orfu (TSum x y).
+Hint Constructors orfu.
 
 Theorem orfu_ORFU:
     forall T,
@@ -52,7 +53,7 @@ Theorem orfu_ORFU:
     ).
 Qed.
 
-Theorem subty_orfu_trans:
+(* Theorem subty_orfu_trans:
     forall x y,
         subty x y ->
         orfu x ->
@@ -65,6 +66,22 @@ Theorem subty_orfu_trans:
         | h : orfu _ |- _ => inversion h; subst; eauto
         end
     ).
-    Abort.
+    Abort. *)
+
+Theorem subty_defined_well_strong_orfu:
+    forall x y,
+        subty x y ->
+        orfu x ->
+        forall T fid,
+            rcd_field_ty' y fid = Some T ->
+            exists T', rcd_field_ty' x fid = Some T' /\ subty T' T.
+
+    intros.
+    assert (ORFU x).
+    eapply orfu_ORFU; eauto.
+    eapply subty_defined_well_strong_ORFU; eauto.
+Qed.
+
+
 
 End SmallCoreORFU.

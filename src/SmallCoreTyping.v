@@ -9,8 +9,10 @@ Require Import SmallCore.
 Require Import Coq.ZArith.ZArith.
 Require Import SmallCorePropSubty.
 Require Import SmallCoreStep.
+Require Import SmallCoreORFU.
 
 Import SmallCore.SmallCore.
+Import SmallCoreORFU.SmallCoreORFU.
 Import SmallCoreStep.SmallCoreStep.
 Import SmallCorePropSubty.SmallCorePropSubty.
 Import Context.Context.
@@ -24,6 +26,14 @@ Fixpoint extty_to_ty (extty : Extty) : ty.
 Defined.
 
 
+
+Theorem extty_orfu:
+    forall T,
+        orfu (extty_to_ty T).
+
+    induction T; intros; simpl in *; eauto.
+Qed.
+
 Inductive has_type : Context (type := {x : ty | wf_ty x}) -> tm -> ty -> Prop :=
 | ht_none : 
     forall ctx,
@@ -32,15 +42,16 @@ Inductive has_type : Context (type := {x : ty | wf_ty x}) -> tm -> ty -> Prop :=
     forall ctx i t0 t1 T T',
         has_type ctx t0 T ->
         has_type ctx t1 T' ->
-        RFU T' ->
+        orfu T' ->
         rcd_field_ty' T' i = None ->
         has_type ctx (trcons i t0 t1) (TRcons i T T')
 | ht_var: forall ctx T i (h: wf_ty T),
     byContext ctx i = Some (exist _ T h) ->
-    ORFU T ->
+    orfu T ->
     has_type ctx (tvar i) T
 | ht_fun : forall ctx i T body TO (h: wf_ty T),
     has_type (update i (exist _ T h) ctx) body TO ->
+    orfu T ->
     has_type ctx (tfun i T h body) (TFun T TO)
 | ht_app : forall ctx t0 t1 T0 T1,
     has_type ctx t0 (TFun T0 T1) ->
@@ -55,9 +66,11 @@ Inductive has_type : Context (type := {x : ty | wf_ty x}) -> tm -> ty -> Prop :=
     has_type ctx (tfixApp i T h body) T
 | ht_left : forall ctx t0 TL TR (h: wf_ty TR),
     has_type ctx t0 TL ->
+    orfu TR ->
     has_type ctx (tleft t0 TR h) (TSum TL TR)
 | ht_right : forall ctx t0 TL TR (h: wf_ty TL),
     has_type ctx t0 TR ->
+    orfu TL ->
     has_type ctx (tright TL h t0) (TSum TL TR)
 | ht_case : forall ctx crit tl tr TL TR TO,
     has_type ctx crit (TSum TL TR) ->
@@ -66,13 +79,16 @@ Inductive has_type : Context (type := {x : ty | wf_ty x}) -> tm -> ty -> Prop :=
     has_type ctx (tcase crit tl tr) TO
 | ht_field : forall ctx i T0 T (h0: only_rcd T0) (h1: wf_ty T0),
     rcd_field_ty T0 h0 h1 i = Some T ->
+    orfu T0 ->
+    orfu T ->
     has_type ctx (tfield T0 h0 h1 i) (TFun T0 T)
 | ht_ext : forall ctx T t h,
     has_type ctx (text T t h) (extty_to_ty T)
 | ht_subty: forall ctx t T0 T1,
     has_type ctx t T0 ->
     subty T0 T1 ->
-    ORFU T0 ->
+    orfu T0 ->
+    orfu T1 ->
     T0 <> T1 ->
     has_type ctx t T1.
 
@@ -234,6 +250,7 @@ Theorem ctx_change:
     eapply ht_fun.
     eapply IHh0. 
     intros. cbn. destruct (eq_id_dec i0 i); subst; eauto.
+    eauto.
 
     (* case tlet*)
     eapply ht_let. eapply IHh0_1.
@@ -275,17 +292,19 @@ Lemma ctx_typed_fv_exists:
     
 
     (* case tfun *)
-    inversion H; subst; eauto.
-    destruct (IHh0 i0 H5); subst; eauto.
-    cbn in H0. destruct (eq_id_dec i0 i); subst; eauto; try contradiction.
+    inversion H0; subst; eauto.
+    destruct (IHh0 i0 H6); subst; eauto.
+    cbn in *. destruct (eq_id_dec i0 i); subst; eauto; try contradiction.
     
     (* case tlet *)
-    inversion H; subst; eauto. destruct (IHh0_2 i0 H6); subst; eauto.
-    cbn in H0; subst; eauto. destruct (eq_id_dec i0 i); subst; eauto; try contradiction.
+    inversion H; subst; eauto.
+    destruct (IHh0_2 i0 H6); subst; eauto. 
+    (* destruct (IHh0_2 i0 H6); subst; eauto. *)
+    cbn in *; subst; eauto. destruct (eq_id_dec i0 i); subst; eauto; try contradiction.
 
     (* case tfix*)
     inversion H; subst; eauto. destruct (IHh0 i0 H5); subst; eauto.
-    cbn in H0; subst; eauto. destruct (eq_id_dec i0 i); subst; eauto; try contradiction.
+    cbn in *; subst; eauto. destruct (eq_id_dec i0 i); subst; eauto; try contradiction.
 
 Qed.
 
@@ -317,13 +336,13 @@ Theorem typed_closed :
     (* case tvar *)
     inversion H.
     (* case tfun*)
-    inversion H; subst; eauto.
+    inversion H0; subst; eauto.
     destruct 
     (ctx_typed_fv_exists 
     (update i (exist wf_ty T h) empty) 
-    body TO h0 i0 H5).
-    cbn in H0. destruct (eq_id_dec i0 i); subst; eauto; try contradiction.
-    inversion H0.
+    body TO h0 i0 H6).
+    cbn in *. destruct (eq_id_dec i0 i); subst; eauto; try contradiction.
+    try discriminate.
 
     (* case tlet *)
     inversion H; subst; eauto.
@@ -402,19 +421,24 @@ Lemma Extty_well_formed:
     induction T; intros; simpl in *; eauto; subst.
 Qed.
 
-Theorem has_type_ORFU:
+Theorem has_type_orfu:
     forall ctx t T,
         has_type ctx t T ->
-        ORFU T.
+        orfu T.
 
     intros ctx t T h.
     induction h; intros; try intro; subst; 
     try match goal with
         | h : only_rcd _ |- _ => inversion h; subst; eauto; try discriminate; try contradiction; fail
-    end.
-    Focus 2.
+    end; 
+    try match goal with
+    | h : orfu (_ _) |- _ => inversion h; subst; eauto; try discriminate; try contradiction; fail
+    end; 
+    eauto.
+    (* case extty_to_ty *)
+    eapply extty_orfu.
+Qed.
 
-    Focus 4.
 
 Theorem has_type_well_formed:
     forall ctx t T,
@@ -691,14 +715,7 @@ repeat match goal with
     destructALL; glize h0 0
 end; intros;construct_orcd.
 
-Lemma rcd_field_ty'_wf_is_onlyrcd:
-    forall T i T' (h: wf_ty T),
-        rcd_field_ty' T i = Some T' ->
-        only_rcd T.
-    intros T.
-    induction T; intros; subst; eauto; cbn in *; eauto; try discriminate.
-    eapply orcdRcd. inversion h; subst; eauto.
-Qed.
+
 
 Lemma record_has_type_has_field:
     forall t T i T',

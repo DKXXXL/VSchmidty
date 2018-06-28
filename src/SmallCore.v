@@ -178,7 +178,14 @@ Lemma rcd_field_ty'_wf_is_wf:
     inversion H; subst; eauto.
 Qed.
     
-
+Lemma rcd_field_ty'_wf_is_onlyrcd:
+    forall T i T' (h: wf_ty T),
+        rcd_field_ty' T i = Some T' ->
+        only_rcd T.
+    intros T.
+    induction T; intros; subst; eauto; cbn in *; eauto; try discriminate.
+    eapply orcdRcd. inversion h; subst; eauto.
+Qed.
 
 Definition subty_prop_weak (x y : ty) := 
     forall T fid,
@@ -414,6 +421,14 @@ Theorem RFU_is_rcd:
     induction h; subst; eauto.
 Qed.
 
+Theorem subty_wf:
+    forall x y,
+        subty x y ->
+        wf_ty x /\ wf_ty y.
+    
+intros x y h;
+induction h; destructALL; subst; split; eauto.
+Qed.
 
 Theorem subty_defined_well_strong:
     forall x y,
@@ -428,18 +443,22 @@ Theorem subty_defined_well_strong:
     eapply subty_defined_well_strong'; eauto.
 Qed.
         
-
-
-
-
-
-Theorem subty_wf:
+Theorem subty_defined_well_strong_ORFU:
     forall x y,
         subty x y ->
-        wf_ty x /\ wf_ty y.
-    
-intros x y h;
-induction h; destructALL; subst; split; eauto.
+        ORFU x ->
+        forall T fid,
+            rcd_field_ty' y fid = Some T ->
+            exists T', rcd_field_ty' x fid = Some T' /\ subty T' T.
+
+    intros.
+    destruct (only_rcd_dec x). eapply subty_defined_well_strong'; eauto.
+    cut (only_rcd x); eauto; try contradiction.
+    poses' (subty_defined_well_weak _ _ H _ _ H1); destructALL.
+    eapply rcd_field_ty'_wf_is_onlyrcd.
+    cut (wf_ty x /\ wf_ty y); try tauto.
+    eapply subty_wf; eauto.
+    exact H2.
 Qed.
 
 Theorem ORFU_trans:
