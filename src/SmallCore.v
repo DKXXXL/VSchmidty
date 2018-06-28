@@ -260,26 +260,21 @@ Theorem subty_defined_well_weak :
 Qed.
 
 Inductive record_field_unique : ty -> Prop :=
-    | rfu_var : forall i,  record_field_unique (TVar i)
     | rfu_none : record_field_unique TNone
     | rfu_rcons : forall i t T,
+        (only_rcd t -> record_field_unique t) -> 
         record_field_unique T ->
         rcd_field_ty' T i = None ->
-        record_field_unique (TRcons i t T)
-    | rfu_fun : 
-        forall x y, 
-        record_field_unique x ->
-        record_field_unique y ->
-        record_field_unique (TFun x y)
-    | rfu_sum : 
-        forall x y, 
-        record_field_unique x ->
-        record_field_unique y ->
-        record_field_unique (TSum x y).
+        record_field_unique (TRcons i t T).
+
+
 
 Hint Constructors record_field_unique.
 
 Notation "'RFU'" := record_field_unique.
+
+Notation "'ORFU' x" := (only_rcd x -> RFU x) (at level 10).
+
 
 Ltac destructALL :=
 repeat (
@@ -316,6 +311,10 @@ Theorem RFU_dec :
         right; intros CCC; inversion CCC; subst; try contradiction; 
         try rewrite hh in *; try contradiction; try discriminate; fail
     ).
+    destruct (only_rcd_dec T1); subst; eauto.
+    right; intro. inversion H; subst; eauto.
+    left. eapply rfu_rcons; eauto. intro. try contradiction.
+    
 Qed.
 
 Theorem subty_prop_weak' :
@@ -341,7 +340,6 @@ Qed.
 Theorem RFU_trans:
     forall x y,
         subty x y ->
-        only_rcd x ->
         RFU x ->
         RFU y.
 
@@ -357,17 +355,17 @@ Theorem RFU_trans:
         end
     ).
 
-    inversion H4; subst; eauto.
-    poses' (IHh2 H0 H7). 
-    eapply rfu_rcons; eauto.
+    inversion H3; subst; eauto.
+    
+    eapply rfu_rcons; eauto. intro.
+    eapply IHh1. eapply H7. eapply subty_rcd; eauto.
     eapply subty_prop_weak'; eauto.
-    eapply IHh2; eauto.
-    eapply subty_rcd1; eauto.
+
 
 Qed.
 
 
-Theorem subty_defined_well_strong:
+Theorem subty_defined_well_strong':
     forall x y,
         subty x y ->
         only_rcd x ->
@@ -390,8 +388,8 @@ Theorem subty_defined_well_strong:
     simpl in *. inversion h1; subst; eauto.
     destruct (eq_id_dec i fid); subst; eauto; try discriminate.
     inversion h0; subst; eauto.
-    destruct (IHh H8 H4 H7 _ _ H5).
-    rewrite H10 in *; try contradiction; try discriminate.
+    destruct (IHh H10 H4 H7 _ _ H5). 
+    rewrite H11 in *; try contradiction; try discriminate.
     destruct H6; try discriminate.
 
     (* case subRefl *)
@@ -407,8 +405,29 @@ Theorem subty_defined_well_strong:
     eauto.
 Qed.
 
+Theorem RFU_is_rcd:
+    forall T,
+        RFU T ->
+        only_rcd T.
+    
+    intros T h.
+    induction h; subst; eauto.
+Qed.
 
 
+Theorem subty_defined_well_strong:
+    forall x y,
+        subty x y ->
+        RFU x ->
+        forall T fid,
+            rcd_field_ty' y fid = Some T ->
+            exists T', rcd_field_ty' x fid = Some T' /\ subty T' T.
+
+    intros.
+    assert (only_rcd x). eapply RFU_is_rcd; eauto.
+    eapply subty_defined_well_strong'; eauto.
+Qed.
+        
 
 
 
@@ -421,6 +440,17 @@ Theorem subty_wf:
     
 intros x y h;
 induction h; destructALL; subst; split; eauto.
+Qed.
+
+Theorem ORFU_trans:
+    forall x y,
+        subty x y ->
+        ORFU x ->
+        ORFU y.
+
+    intros x y h h0.
+    intro. eapply RFU_trans; eauto.
+    eapply h0. eapply subty_rcd; eauto.
 Qed.
 
 End SmallCore.

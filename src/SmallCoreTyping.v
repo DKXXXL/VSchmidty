@@ -24,7 +24,6 @@ Fixpoint extty_to_ty (extty : Extty) : ty.
 Defined.
 
 
-
 Inductive has_type : Context (type := {x : ty | wf_ty x}) -> tm -> ty -> Prop :=
 | ht_none : 
     forall ctx,
@@ -71,8 +70,7 @@ Inductive has_type : Context (type := {x : ty | wf_ty x}) -> tm -> ty -> Prop :=
 | ht_subty: forall ctx t T0 T1,
     has_type ctx t T0 ->
     subty T0 T1 ->
-    RFU T0 ->
-    RFU T1 ->
+    ORFU T0 ->
     T0 <> T1 ->
     has_type ctx t T1.
 
@@ -677,6 +675,15 @@ repeat match goal with
     destructALL; glize h0 0
 end; intros;construct_orcd.
 
+Lemma rcd_field_ty'_wf_is_onlyrcd:
+    forall T i T' (h: wf_ty T),
+        rcd_field_ty' T i = Some T' ->
+        only_rcd T.
+    intros T.
+    induction T; intros; subst; eauto; cbn in *; eauto; try discriminate.
+    eapply orcdRcd. inversion h; subst; eauto.
+Qed.
+
 Lemma record_has_type_has_field:
     forall t T i T',
         has_type empty t T ->
@@ -705,11 +712,15 @@ Lemma record_has_type_has_field:
     simpl in *; try discriminate; eauto.
 
     (* case ht_sub*)
-    poses' (subty_defined_well_strong _ _ H ).
+    destruct (only_rcd_dec T1); subst; eauto.
+    assert (only_rcd T0); eauto. eapply subty_rcd; eauto.
+    poses' (H0 H5).
+    poses' (subty_defined_well_strong _ _ H H6 _ _ H3); destructALL.
+    eapply H4; eauto.
     construct_wf_ty_and_orcd; eauto.
-    assert (only_rcd T1);try eapply rcd_field_ty'_wf_is_onlyrcd; eauto.
-    assert (only_rcd T0); try eapply subty_rcd; eauto.
-    forwards*: H5; destructALL; eauto.
+    poses' (rcd_field_ty'_wf_is_onlyrcd _ _ _ H6 H3).
+    try contradiction.
+
 Qed.
 
     
@@ -721,6 +732,7 @@ Qed.
 Theorem progress:
     forall t T,
         has_type empty t T ->
+        ORFU T ->
         value t \/ (exists t', step t t').
 
 intros t T h.
@@ -744,7 +756,7 @@ try (
     );
     try (
         right; eexists; eauto; fail
-    )
+    ); fail
 ).
     (* case tapp *)
     destruct (value_has_type_inver_tfun1 _ H _ _ h1);
