@@ -70,7 +70,7 @@ Inductive has_type : Context (type := {x : ty | wf_ty x}) -> tm -> ty -> Prop :=
 | ht_subty: forall ctx t T0 T1,
     has_type ctx t T0 ->
     subty T0 T1 ->
-    ORFU T0 ->
+    RFU T0 ->
     T0 <> T1 ->
     has_type ctx t T1.
 
@@ -714,8 +714,8 @@ Lemma record_has_type_has_field:
     (* case ht_sub*)
     destruct (only_rcd_dec T1); subst; eauto.
     assert (only_rcd T0); eauto. eapply subty_rcd; eauto.
-    poses' (H0 H5).
-    poses' (subty_defined_well_strong _ _ H H6 _ _ H3); destructALL.
+    
+    poses' (subty_defined_well_strong _ _ H H0 _ _ H3); destructALL.
     eapply H4; eauto.
     construct_wf_ty_and_orcd; eauto.
     poses' (rcd_field_ty'_wf_is_onlyrcd _ _ _ H6 H3).
@@ -732,7 +732,7 @@ Qed.
 Theorem progress:
     forall t T,
         has_type empty t T ->
-        ORFU T ->
+        RFU T ->
         value t \/ (exists t', step t t').
 
 intros t T h.
@@ -758,6 +758,8 @@ try (
         right; eexists; eauto; fail
     ); fail
 ).
+    (* case trcons *)
+    inversion H0; subst; eauto. forwardALL.
     (* case tapp *)
     destruct (value_has_type_inver_tfun1 _ H _ _ h1);
     destructALL; subst; eauto.
