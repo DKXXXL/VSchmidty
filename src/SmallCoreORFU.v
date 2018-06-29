@@ -119,4 +119,34 @@ Theorem rcd_field_ty'_orfu_is_orfu:
 Qed.
 
 
+Theorem orfu_dec:
+    forall x,
+        {orfu x} + {~orfu x}.
+    induction x; intros; subst; eauto;
+    destructALL;
+    try (
+        left;
+        match goal with
+        | h : orfu _ |- _ => inversion h; subst; eauto
+        end; fail
+    );
+    try (
+        right;
+        intro;
+        match goal with
+        | h : orfu _ |- _ => inversion h; subst; eauto; try discriminate; try contradiction
+        end; fail
+    ).
+    
+    (* case TRcons *)
+    destruct (rcd_field_ty' x2 f) eqn:H;
+    try (
+        left;
+        match goal with
+        | h : orfu _ |- _ => inversion h; subst; eauto
+        end; fail
+    ).
+    right; intro. inversion H0; subst; eauto. rewrite H6 in *; try discriminate.
+Qed.
+
 End SmallCoreORFU.

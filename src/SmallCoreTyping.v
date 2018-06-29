@@ -1169,7 +1169,7 @@ Theorem preservation:
 Qed.
 
 
-    
+End SmallCoreTyping.
 
 
 
