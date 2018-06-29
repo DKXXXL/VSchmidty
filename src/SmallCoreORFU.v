@@ -104,5 +104,19 @@ Theorem RFU_orfu:
     eapply orfu_trcons; eauto.
 Abort.
 
+Theorem rcd_field_ty'_orfu_is_orfu:
+    forall T i x,
+        rcd_field_ty' T i = Some x ->
+        orfu T ->
+        orfu x.
+
+    intros T i x h0 h.
+    generalize dependent x.
+    generalize dependent i.
+    induction h; intros; cbn in *; subst; eauto; try discriminate.
+    destruct (eq_id_dec i i0); subst ; eauto.
+    inversion h0; subst; eauto.
+Qed.
+
 
 End SmallCoreORFU.

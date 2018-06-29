@@ -619,8 +619,8 @@ Lemma value_has_type_inver_tfield0':
         (exists Ti To, 
             (T = TFun Ti To 
             /\ only_rcd Ti 
-            /\ subty Ti T0)
-        /\ exists T', rcd_field_ty' T0 i = Some T'
+            /\ subty Ti T0
+            /\ exists T', rcd_field_ty' T0 i = Some T' /\ subty T' To)
         /\ orfu T0
         ).
     intros ctx T0 ort wft i T h0.
@@ -629,7 +629,8 @@ Lemma value_has_type_inver_tfield0':
     induction h0; intros;subst; eauto;
     try discriminate; try contradiction.
     inversion Heqt; subst; eauto.
-    repeat eexists; eauto.
+    repeat eexists; eauto. eapply subRefl.
+    unfold rcd_field_ty in *. eapply rcd_field_ty'_wf_is_wf; eauto.
     forwards :IHh0; subst; eauto.
     destructALL; subst; eauto.
     forwards: subty_extrac_tfun0; eauto; subst.
@@ -860,6 +861,30 @@ Lemma record_has_type_has_field:
 
 Qed.
 
+    
+Lemma record_has_type_has_field_with_type:
+    forall i t t' T T',
+        has_type empty t T ->
+        value t ->
+        rcd_field_ty' T i = Some T' ->
+        rcd_field_tm' t i = Some t' ->
+        exists T'', has_type empty t' T'' /\ subty T'' T'.
+    intros i t t' T T' h.
+    remember empty as ctx.
+    glize i Heqctx t' T' 0.
+    induction h; intros; cbn in *; subst; eauto; try discriminate;
+    try (
+        match goal with
+        | h : value (_ _) |- _ => inversion h; subst; eauto
+        end
+    ).
+    destruct (eq_id_dec i i0); subst; eauto. inversion H3; inversion H4; subst; eauto.
+    eexists; split; eauto. eapply subRefl. eapply has_type_well_formed; eauto.
+
+    forwards*: subty_defined_well_strong_orfu. destructALL; eauto.
+    
+    forwards* : IHh; eauto.
+Qed.
     
 
     
@@ -1104,7 +1129,30 @@ Theorem preservation:
     eapply ht_subty; eauto.
     eapply has_type_orfu; eauto.
 
+    (* case tfield *)
+    forwards*: (value_has_type_inver_tfield0');
+    destructALL; subst; eauto. inversion H2; subst; eauto.
+    assert (has_type empty t1 T); eauto. 
+        destruct (eq_ty_dec T x); subst; eauto.
+        eapply ht_subty; eauto. eapply has_type_orfu; eauto.
+    forwards*: record_has_type_has_field_with_type; destructALL; eauto.
+    forwards*: has_type_orfu.
+    forwards*: rcd_field_ty'_orfu_is_orfu.
+    assert (orfu (TFun x x0)); eauto; try eapply has_type_orfu; eauto.
+    inversion H17; subst; eauto.
+    assert (has_type empty t' x1); eauto.
+        destruct (eq_ty_dec x2 x1); subst; eauto.
+    destruct (eq_ty_dec x1 x0); subst; eauto.
+
+    (* case text*)
+    destruct (eintp i O f x h0 h3).
+    forwards* : value_has_type_inver_text0. cbn in *. inversion H2; subst; eauto.
     
+
+    (* case tleft *)
+    
+
+
     
 
 
