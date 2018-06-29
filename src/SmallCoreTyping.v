@@ -499,32 +499,41 @@ Lemma value_has_type_inver_tsum0:
     forall ctx lt RT w T,
         has_type ctx (tleft lt RT w) T ->
         exists TL TR,
-            T = TSum TL TR.
+            T = TSum TL TR /\ has_type ctx lt TL.
 
     intros ctx lt RT w T h0.
     remember (tleft lt RT w) as t.
     glize lt RT 0.
     induction h0; intros;subst; eauto;
-    try discriminate; try contradiction.
+    try discriminate; try contradiction. inversion Heqt; subst; eauto.
     forwards :IHh0; subst; eauto.
     destructALL; subst; eauto.
-    forwards: subty_extrac_tsum0; eauto; subst.
+    forwards: subty_extrac_tsum0; eauto; subst. destructALL; subst; eauto.
+    inversion H0; inversion H1; subst; eauto.
+    forwards: subty_extra_tsum; eauto; destructALL; subst.
+    repeat eexists. 
+    destruct (eq_ty_dec x x1); subst; eauto.
 Qed.
 
 Lemma value_has_type_inver_tsum1:
     forall ctx LT w rt T,
         has_type ctx (tright LT w rt) T ->
         exists TL TR,
-            T = TSum TL TR.
+            T = TSum TL TR /\ has_type ctx rt TR.
 
     intros ctx LT w rt T h0.
     remember (tright LT w rt) as t.
     glize LT rt 0.
     induction h0; intros;subst; eauto;
-    try discriminate; try contradiction.
+    try discriminate; try contradiction. inversion Heqt; subst; eauto.
     forwards :IHh0; subst; eauto.
     destructALL; subst; eauto.
-    forwards: subty_extrac_tsum0; eauto; subst.
+    forwards: subty_extrac_tsum0; eauto; subst. destructALL; subst; eauto.
+    inversion H0; inversion H1; subst; eauto.
+    forwards: subty_extra_tsum; eauto; destructALL; subst.
+    repeat eexists. 
+    destruct (eq_ty_dec x0 x2); subst; eauto.
+
 Qed.
 
 Lemma extty_inver:
@@ -550,9 +559,9 @@ Lemma value_has_type_inver_tsum11:
     try (
         match goal with
         | h : value _ |- _ =>
-            inversion h
-        end; fail
-    ).
+            inversion h; subst; eauto
+        end; fail).
+
     (* case extty *)
     destruct (extty_inver T); destructALL; subst; rewrite HeqH in *; try discriminate.
 
@@ -1150,7 +1159,14 @@ Theorem preservation:
     
 
     (* case tleft *)
-    
+    eapply ht_app; eauto. 
+    forwards*: value_has_type_inver_tsum0; destructALL; subst; eauto. 
+    inversion H3; subst; eauto.
+    (* case tright *)
+    eapply ht_app; eauto.
+    forwards*: value_has_type_inver_tsum1; destructALL; subst; eauto. 
+    inversion H3; subst; eauto.
+Qed.
 
 
     
