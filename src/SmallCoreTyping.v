@@ -564,7 +564,7 @@ Lemma value_has_type_inver_tfun1:
         value t ->
         forall iT oT,
         has_type empty t (TFun iT oT) ->
-        (exists i T w body, t = tfun i T w body) 
+        (exists i T w body, t = tfun i T w body /\ subty iT T /\ orfu T) 
         \/ (exists T o w i, t = tfield T o w i)
         \/ (exists T x h, t = text T x h).
 
@@ -575,15 +575,23 @@ Lemma value_has_type_inver_tfun1:
     induction H;intros; subst; eauto; try discriminate;
     try (
         match goal with
-        | h : value _ |- _ =>
-            inversion h
+        | h : value (_ _) |- _ =>
+            inversion h; subst; eauto
         end; fail
     ).
 
-    inversion HeqT'; subst; eauto. left; eauto.
+    inversion HeqT'; subst; eauto. left; eauto. exists i. exists iT. exists h. eauto.
     inversion HeqT'; subst; eauto. right; left; eauto.
     right;right; eauto.
-    forwards*:subty_extrac_tfun1. 
+    forwards*:subty_extrac_tfun1. destructALL; subst; eauto.
+    forwards*:subty_extra_tfun; destructALL; subst.
+    
+    forwards*:IHhas_type; destructALL; subst; eauto.
+    assert (subty iT x2); eauto.
+    left. repeat eexists; eauto.
+    right; left; eauto.
+    right; right; eauto.
+    
 Qed.
 
 Lemma value_has_type_inver_tfield0:
@@ -752,6 +760,9 @@ Lemma value_has_type_inver_TVar1:
     edestruct H2. eapply subty_onlyrefl_TVar1; eauto.
 Qed.
 
+
+
+
 Ltac eli_dupli_wf_ty :=
 repeat (
     match goal with
@@ -790,6 +801,27 @@ repeat match goal with
     poses' (has_type_well_formed _ _ _ h0);
     destructALL; glize h0 0
 end; intros;construct_orcd.
+
+Lemma value_has_type_inver_tfun3:
+    forall ctx i T h body T0 T1,
+        has_type ctx (tfun i T h body) (TFun T0 T1) ->
+        has_type (update i (exist wf_ty T h) ctx) body T1.
+
+    intros. remember (tfun i T h body) as tm.
+    remember (TFun T0 T1) as Ty.
+    glize T0 T T1 i body 0.
+
+    induction H; intros; subst; eauto; try discriminate.
+    inversion Heqtm; inversion HeqTy; subst; eauto.
+    eli_dupli_wf_ty_orcd. eauto.
+
+    forwards*: subty_extrac_tfun1. destructALL; subst; eauto.
+    forwards*: IHhas_type.
+    destruct (eq_ty_dec x0 T2); subst; eauto.
+    inversion H1; inversion H2; subst; eauto.
+    eapply ht_subty; eauto.
+    forwards*: subty_extra_tfun; eauto.
+Qed.
 
 
 
@@ -1058,13 +1090,21 @@ Theorem preservation:
     construct_wf_ty_and_orcd;
     construct_orcd;
     eli_dupli_wf_ty_orcd;
-    eauto.
+    eauto;
     
-    inversion h1; subst; eauto.
+    try (eapply subst_type_preserve; eauto; fail).
+
+    (* case tfun *)
+
+    forwards*: (value_has_type_inver_tfun1 ((tfun i T h body)));
+    destructALL; subst; try discriminate. inversion H2; subst; eauto.
+    forwards*: value_has_type_inver_tfun3. eauto.
+    eapply subst_type_preserve; eauto.
+    destruct (eq_ty_dec T0 x0); subst; eauto.
+    eapply ht_subty; eauto.
+    eapply has_type_orfu; eauto.
+
     
-    (* tapp *)
-    (* tapp field*)
-    Focus 4.
     
 
 
