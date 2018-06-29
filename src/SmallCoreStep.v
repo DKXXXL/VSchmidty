@@ -86,21 +86,21 @@ Inductive value : tm -> Prop :=
 Hint Constructors value.
 
 (* subst (i:id) (rep: tm) (org: tm) : tm *)
-Fixpoint subst (i : id) (rep : tm) (org : tm) : tm :=
-    let rp' := subst i rep
+Fixpoint subst (i0 : id) (rep : tm) (org : tm) : tm :=
+    let rp' := subst i0 rep
     in
     match org with
 
     | trcons i t0 t1 => trcons i (rp' t0) (rp' t1)
-    | tvar i0 => if (eq_id_dec i i0) then rep else org
+    | tvar i => if (eq_id_dec i i0) then rep else org
 
-    | tfun i0 T w body =>
-        if (eq_id_dec i i0) then org else tfun i0 T w (rp' body)
+    | tfun i T w body =>
+        if (eq_id_dec i i0) then org else tfun i T w (rp' body)
     | tapp p q => tapp (rp' p) (rp' q)
-    | tlet i0 T w bind body =>
-        if (eq_id_dec i i0) then tlet i0 T w (rp' bind) body else tlet i0 T w (rp' bind) (rp' body)
-    | tfixApp i0 T w body =>
-        if (eq_id_dec i i0) then org else tfixApp i0 T w (rp' body)
+    | tlet i T w bind body =>
+        if (eq_id_dec i i0) then tlet i T w (rp' bind) body else tlet i T w (rp' bind) (rp' body)
+    | tfixApp i T w body =>
+        if (eq_id_dec i i0) then org else tfixApp i T w (rp' body)
     | tleft l R w => tleft (rp' l) R w
     | tright L w r => tright L w (rp' r)
     | tcase a b c => tcase (rp' a) (rp' b) (rp' c)

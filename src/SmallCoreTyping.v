@@ -913,8 +913,111 @@ try (
     ).
 Qed.
 
+Lemma subst_type_preserve:
+    forall i Ti h ctx' ctx t body T,
+        has_type ctx' body T ->
+        ctx' -=- (update i (exist wf_ty Ti h) ctx) ->
+        has_type ctx t Ti ->
+        has_type ctx (subst i t body) T.
+    intros i Ti h0 ctx' ctx t body T h h'.
+    assert (ctx' =-= (update i (exist wf_ty Ti h0) ctx)); eauto.
+    eapply CtxEq_byCtxEq; eauto.
+    glize Ti t  ctx i 0. 
+    induction h; intros; subst; cbn in *; try discriminate; eauto.
 
- 
+    (* case tvar *)
+    destruct (eq_id_dec i i0); subst; eauto.
+    assert (byContext (update i0 (exist wf_ty Ti h0) ctx0) i0 = byContext ctx i0).
+    eapply CtxEq_byCtxEq; eauto.
+    rewrite H in *; cbn in *. rewrite eq_id_dec_id in *.
+    inversion H3; subst; eauto.
+
+    eli_dupli_wf_ty_orcd.
+    eapply ht_var; eauto. 
+    assert (byContext (update i0 (exist wf_ty Ti h0) ctx0) i = Some (exist wf_ty T h)).
+    rewrite <- H. symmetry. eapply H1. cbn in *; eauto. destruct (eq_id_dec i i0); subst; eauto; try contradiction.
+
+
+    (* case tfun *)
+    destruct (eq_id_dec i i0); subst; eauto.
+    eapply ht_fun; eauto. 
+    assert (has_type (update i0 (exist wf_ty T h) (update i0 (exist wf_ty Ti h1) ctx0)) body TO).
+    eapply ctx_eq_rewrite; eauto.
+    assert (has_type (update i0 (exist wf_ty T h) ( ctx0)) body TO).
+    eapply ctx_eq_rewrite; eauto. eauto.
+    eapply ht_fun; eauto.
+
+    eapply ctx_eq_rewrite.  
+    eapply IHh; eauto. eapply CtxEq_byCtxEq.
+    eapply eqSymm. eapply eqTrans. eapply eqPermute; eauto.
+    eapply eqUpdate. eapply eqSymm; eauto.
+    
+Abort.
+
+(* Why ?! Why is cannot be proved ?! *)
+Lemma subst_type_preserve:
+    forall i Ti h ctx' ctx t body T,
+        has_type ctx' body T ->
+        ctx' -=- (update i (exist wf_ty Ti h) ctx) ->
+        has_type empty t Ti ->
+        has_type ctx (subst i t body) T.
+
+    intros i Ti h0 ctx' ctx t body T h h'.
+    assert (ctx' =-= (update i (exist wf_ty Ti h0) ctx)); eauto.
+    eapply CtxEq_byCtxEq; eauto.
+    glize Ti t  ctx i 0. 
+    induction h; intros; subst; cbn in *; try discriminate; eauto.
+    
+        (* case tvar *)
+        destruct (eq_id_dec i i0); subst; eauto.
+        assert (byContext (update i0 (exist wf_ty Ti h0) ctx0) i0 = byContext ctx i0).
+        eapply CtxEq_byCtxEq; eauto.
+        rewrite H in *; cbn in *. rewrite eq_id_dec_id in *.
+        inversion H3; subst; eauto. eapply empty_typed_ctx_typed; eauto.
+    
+        eli_dupli_wf_ty_orcd.
+        eapply ht_var; eauto. 
+        assert (byContext (update i0 (exist wf_ty Ti h0) ctx0) i = Some (exist wf_ty T h)).
+        rewrite <- H. symmetry. eapply H1. cbn in *; eauto. destruct (eq_id_dec i i0); subst; eauto; try contradiction.
+    
+        (* case tfun *)
+        destruct (eq_id_dec i i0); subst; eauto.
+    eapply ht_fun; eauto. 
+    assert (has_type (update i0 (exist wf_ty T h) (update i0 (exist wf_ty Ti h1) ctx0)) body TO).
+    eapply ctx_eq_rewrite; eauto.
+    assert (has_type (update i0 (exist wf_ty T h) ( ctx0)) body TO).
+    eapply ctx_eq_rewrite; eauto. eauto.
+    eapply ht_fun; eauto.
+
+    eapply ctx_eq_rewrite.  
+    eapply IHh; eauto. eapply CtxEq_byCtxEq.
+    eapply eqSymm. eapply eqTrans. eapply eqPermute; eauto.
+    eapply eqUpdate. eapply eqSymm; eauto. eapply CtxeqId.
+
+    (* case tlet *)
+    destruct (eq_id_dec i i0); subst; eauto.
+    eapply ht_let; eauto. 
+    assert (has_type (update i0 (exist (fun x : ty => wf_ty x) T h1) (update i0 (exist wf_ty Ti h0) ctx0)) body T').
+    eapply ctx_eq_rewrite; eauto.
+    eapply ctx_eq_rewrite; eauto.
+    eapply ht_let; eauto.
+    eapply IHh2; eauto. eapply CtxEq_byCtxEq.
+    eapply eqSymm. eapply eqTrans. eapply eqPermute. eauto.
+    intro. subst; try contradiction. eapply eqUpdate. eapply eqSymm; eauto.
+
+    (* case tfixApp *)
+    destruct (eq_id_dec i i0); subst; eauto.
+    eapply ht_fix.
+    assert (has_type (update i0 (exist (fun x : ty => wf_ty x) T h) (update i0 (exist wf_ty Ti h1) ctx0)) body T).
+    eapply ctx_eq_rewrite; eauto.
+    eapply ctx_eq_rewrite; eauto.
+    eapply ht_fix; eauto.
+    eapply IHh; eauto. eapply CtxEq_byCtxEq.
+    eapply eqSymm. eapply eqTrans. eapply eqPermute. eauto.
+    intro. subst; try contradiction. eapply eqUpdate. eapply eqSymm; eauto.
+Qed.
+
+
 
 Theorem preservation:
     forall t t' T,
@@ -957,10 +1060,11 @@ Theorem preservation:
     eli_dupli_wf_ty_orcd;
     eauto.
     
-
+    inversion h1; subst; eauto.
+    
     (* tapp *)
     (* tapp field*)
-    Focus 2.
+    Focus 4.
     
 
 
