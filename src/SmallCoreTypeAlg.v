@@ -297,3 +297,5 @@ Theorem typing_alg_leg:
     inversion H;subst; eauto.
 Qed.
     
+
+End SmallCoreTypeAlg.
