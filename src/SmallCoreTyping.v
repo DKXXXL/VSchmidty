@@ -23,6 +23,7 @@ Fixpoint extty_to_ty (extty : Extty) : ty.
     destruct extty.
     exact (TVar t).
     exact (TFun (TVar t) (extty_to_ty extty)).
+    exact (TSum (extty_to_ty extty1) (extty_to_ty extty2)).
 Defined.
 
 Print extty_to_ty.
@@ -538,8 +539,11 @@ Qed.
 
 Lemma extty_inver:
     forall T,
-    (exists i, (extty_to_ty T) = TVar i )\/(exists I O, extty_to_ty T  = TFun I O).
+    (exists i, (extty_to_ty T) = TVar i )
+    \/(exists I O, extty_to_ty T  = TFun I O)
+    \/(exists L R, extty_to_ty T = TSum L R).
     intros T; destruct T; simpl in *; eauto.
+
 Qed.
 
 
@@ -548,8 +552,9 @@ Lemma value_has_type_inver_tsum11:
         value t ->
         forall TL TR,
         has_type empty t (TSum TL TR) ->
-        (exists w tl tr, t = tleft tl w tr) \/
-        (exists w tl tr, t = tright w tl tr).
+        (exists tl tr w, t = tleft tl tr w) \/
+        (exists tl tr w, t = tright tl w tr) \/
+        (exists L R t' h, t = text (ETSum L R) t' h).
       
     intros t h0 TL TR h.
     remember empty as ctx;
@@ -560,10 +565,16 @@ Lemma value_has_type_inver_tsum11:
         match goal with
         | h : value _ |- _ =>
             inversion h; subst; eauto
-        end; fail).
+        end; 
+        try (left; repeat eexists; eauto; fail);
+        try (right; left; repeat eexists; eauto; fail);
+        try (right; right; repeat eexists; eauto; fail);
+        fail).
+
 
     (* case extty *)
-    destruct (extty_inver T); destructALL; subst; rewrite HeqH in *; try discriminate.
+    destruct T; cbn in *; subst; try discriminate; eauto.
+    right; right; repeat eexists; eauto.
 
     forwards*: subty_extrac_tsum1.
 Qed.
@@ -713,6 +724,17 @@ Lemma subty_onlyrefl_text:
         forwards*: subty_extra_tfun; destructALL; subst; eauto.
         forwards*: subty_onlyrefl_TVar0; eauto.
         forwardALL; subst; eauto.
+
+    (* case TSum *)
+    forwards*: subty_extrac_tsum0; destructALL; subst; eauto.
+        forwards*: subty_extra_tsum; destructALL; subst; eauto.
+        forwards*: IHT1; eauto; forwards*: IHT2; eauto; subst; eauto.
+    
+    forwards*: subty_extrac_tsum1; destructALL; subst; eauto.
+        forwards*: subty_extra_tsum; destructALL; subst; eauto.
+        forwards*: IHT1; eauto; forwards*: IHT2; eauto; subst; eauto.
+    
+
 Qed.
 
     
@@ -977,6 +999,10 @@ try (
         | h : value (_ _) |- _ => inversion h; subst; eauto; fail
         end
     ).
+
+    destruct (ExttmSumResolver x x0 x1 x2) eqn:h0; eauto.
+    destruct s; eauto.
+    destruct s; eauto.
 Qed.
 
 Lemma subst_type_preserve:
@@ -1166,6 +1192,16 @@ Theorem preservation:
     eapply ht_app; eauto.
     forwards*: value_has_type_inver_tsum1; destructALL; subst; eauto. 
     inversion H3; subst; eauto.
+
+    (* case text TSum*)
+    eapply ht_app; eauto.
+    forwards*: value_has_type_inver_text0. cbn in *.
+    inversion H3; subst; eauto.
+
+    eapply ht_app; eauto.
+    forwards*: value_has_type_inver_text0. cbn in *.
+    inversion H3; subst; eauto.
+    
 Qed.
 
 
