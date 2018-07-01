@@ -25,6 +25,14 @@ Parameter ExttmInterpreter :
         x ==e ExttyInterpreter (ETVar i) ->
         { y : Ext | y ==e ExttyInterpreter O}.
 
+Parameter ExttmSumResolver:
+    forall X Y,
+        forall s,
+            s ==e ExttyInterpreter (ETSum X Y) ->
+            {x : Ext | x ==e ExttyInterpreter X} + 
+            {y  : Ext |  y ==e ExttyInterpreter Y}.
+
+
 
 Parameter ExttmRep:
     forall (x: Ext),
@@ -83,6 +91,7 @@ Inductive value : tm -> Prop :=
     | vext : forall T t h,
                 value (text T t h).
 
+
 Hint Constructors value.
 
 (* subst (i:id) (rep: tm) (org: tm) : tm *)
@@ -119,6 +128,10 @@ Fixpoint rcd_field_tm' (rcd: tm) (field : id) : option tm :=
     | _ => None
     end.
 
+Print left.
+Print ExttmSumResolver.
+
+Print ex.
 Inductive step : tm -> tm -> Prop :=
     | strcons0:
         forall i t0 t0' t1,
@@ -190,6 +203,20 @@ Inductive step : tm -> tm -> Prop :=
             value rb ->
             step (tcase (tright LT w0 rt) lb rb)
                     (tapp rb rt)
+    | stcase5 :
+        forall X Y s x h h' lb rb,
+            value lb ->
+            value rb ->
+            ExttmSumResolver X Y s h = inl (exist _ x h') ->
+            step (tcase (text (ETSum X Y) s h) lb rb)  
+                 (tapp lb (text X x h') )
+    | stcase6 :
+        forall X Y s y h h' lb rb,
+        value lb ->
+        value rb ->
+        ExttmSumResolver X Y s h = inr (exist _ y h') ->
+        step (tcase (text (ETSum X Y) s h) lb rb)  
+             (tapp  rb (text Y y h'))
     | stfield :
         forall T orcd w i rcd t,
             value rcd ->
@@ -198,7 +225,9 @@ Inductive step : tm -> tm -> Prop :=
     | stext :
         forall i O f x h0 h1,
             step (tapp (text (ETFun i O) f h0) (text (ETVar i) x h1)) 
-                 (match (eintp i O f x h0 h1) with | exist _ o h => text O o h end ).
+                 (match (eintp i O f x h0 h1) with | exist _ o h => text O o h end )    
+    .
+
     Hint Constructors step.
 
 
@@ -239,14 +268,15 @@ Lemma value_no_step :
         ) .
     intros t h.
     induction h; intros; intro; subst; eauto;
-    match goal with
+    try (match goal with
     | h0 : step _ _ |- _ => inversion h0; subst; eauto;
         try match goal with
         | h0 : step ?X1 _, h1 : forall _ : tm, ~ step ?X1 _ |- _ => destruct (h1 _ h0)
         end;
     fail
     | _ => idtac
-    end.
+    end; fail).
+
 Qed.
 
 Ltac tac_value_no_step :=
@@ -296,6 +326,7 @@ Theorem step_deterministic:
         | h0 : step (text ?T ?t ?h) _ |- _ =>
             poses' (vext T t h)
     end;
+
     try (match goal with
         | h0 : ?x <> ?x |- _ => destruct (h0 eq_refl)
         end
@@ -315,10 +346,30 @@ Theorem step_deterministic:
     );
     try (
         eli_dupli_wf_ty_orcd; eauto
+    );
+    try (
+        match goal with
+        | h0 : ExttmSumResolver _ _ _ _ = _,
+          h1 : _ = inl _
+            |- _ =>
+            rewrite h0 in *;
+            inversion h1; subst; eauto
+        | h0 : ExttmSumResolver _ _ _ _ = _,
+            h1 : _ = inr _
+              |- _ =>
+              rewrite h0 in *;
+              inversion h1; subst; eauto
+        end;
+        match goal with
+        | h0 : ?x ==e ?y,
+          h1 : ?x ==e ?y |- _ =>
+            forwards*: (Exteqeq _ _ h0 h1); subst; eauto
+        end 
     ).
 
     (* case tfield *)
     rewrite H0 in *. inversion H7; eauto.
+
 Qed.
 
 Theorem value_dec:
