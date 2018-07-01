@@ -255,27 +255,45 @@ Theorem typing_alg_leg:
     forall ctx t T,
         check_type ctx t = Some T ->
         has_type ctx t T.
-
     intros ctx t. glize ctx 0.
-    induction t; intros; subst; cbn in *; eauto; try discriminate.
-    
-    (* TNone *)
-    destruct (byContext ctx i) eqn:h0.
-    destruct s; eauto.
-    destruct (orfu_dec x); subst; eauto; try discriminate.
-    inversion H; subst; eauto.
-    try discriminate.
-    inversion H; subst; eauto.
-    
-
-    (* TFun *)
-    destruct (check_type (update i (exist wf_ty T w) ctx) t) eqn:h0.
-    destruct (orfu_dec T); subst; eauto; try discriminate.
-    inversion H; subst; eauto.
-    try discriminate.
+    induction t; intros; cbn in *; subst; eauto; try discriminate;
+    repeat (
+        match goal with
+        | h : (match ?x with _ => _ end) _ = _ |- _ =>
+            let h := fresh c in
+            destruct x eqn:h
+        | h : (match ?x with _ => _ end) _ _ = _ |- _ =>
+            let h := fresh c in
+            destruct x eqn:h
+        | h : (match ?x with _ => _ end) = _ |- _ =>
+            let h := fresh c in
+            destruct x eqn:h
+        | h : (if ?x then _ else _) = _ |- _ =>
+            let h := fresh c in
+            destruct x 
+        | h : Some _ = Some _ |- _ => inversion h; subst;eauto; try discriminate; clear h
+        end;eauto; try discriminate
+    );subst ...
 
     (* case tapp *)
-    destruct (check_type ctx t1) eqn:h0.
-    destruct t. destruct (check_type ctx t2) eqn:h1.
-    destruct (subty_dec t t3); eauto. inversion H; subst; eauto.
     eapply ht_app; eauto.
+    forwards*: IHt2; eauto.
+    forwards*: typing_alg_orfu. glize c1 0.
+    forwards*: typing_alg_orfu. intros.
+    inversion H1; subst; eauto.
+    destruct (eq_ty_dec t0 t0_1); subst; eauto.
+    
+    (* case tfixApp *)
+    eapply ht_fix; eauto.
+    forwards*: typing_alg_orfu; eauto.
+    forwards*: IHt; eauto.
+    destruct (eq_ty_dec t0 T0); subst; eauto.
+    
+
+    (* case tcase *)
+    inversion H; subst; eauto.
+    inversion H; subst; eauto.
+    inversion H; subst; eauto.
+    inversion H;subst; eauto.
+Qed.
+    
