@@ -97,7 +97,9 @@ Fixpoint check_type (ctx : Context (type := {x : ty | wf_ty x})) (t : tm) : opti
 
     (* case tfixApp *)
     destruct (check_type (update i (exist wf_ty T h) ctx) self) eqn: h0; NotNoneInCtx.
-    destruct (subty_dec t0 T). exact (Some T). exact None. 
+    destruct (subty_dec t0 T). 
+    AssertORFU T.
+    exact (Some T). exact None. 
 
     (* case tleft *)
     destruct (check_type ctx lt) eqn: h0; NotNoneInCtx.
@@ -207,7 +209,42 @@ Proof with eauto; try discriminate.
 Qed.
 
 
+Theorem typing_alg_orfu:
+    forall ctx t T,
+    check_type ctx t = Some  T ->
+    orfu T.
 
+    intros ctx t. glize ctx 0.
+    induction t; intros; cbn in *; subst; eauto; try discriminate;
+    repeat (
+        match goal with
+        | h : (match ?x with _ => _ end) _ = _ |- _ =>
+            let h := fresh c in
+            destruct x eqn:h
+        | h : (match ?x with _ => _ end) _ _ = _ |- _ =>
+            let h := fresh c in
+            destruct x eqn:h
+        | h : (match ?x with _ => _ end) = _ |- _ =>
+            let h := fresh c in
+            destruct x eqn:h
+        | h : (if ?x then _ else _) = _ |- _ =>
+            let h := fresh c in
+            destruct x 
+        | h : Some _ = Some _ |- _ => inversion h; subst;eauto; try discriminate; clear h
+        end;eauto; try discriminate
+    );subst ...
+
+    (* case tapp *)
+    forwards*: IHt1. inversion H; subst; eauto.
+
+    (* case tcase *)
+    
+    inversion H.
+    inversion H.
+    inversion H.
+    inversion H.
+    eapply extty_orfu.
+Qed.
 
 
 
