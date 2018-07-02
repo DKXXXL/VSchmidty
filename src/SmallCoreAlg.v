@@ -278,7 +278,7 @@ Theorem one_step_step:
 Qed.
 
 
-
+End SmallCoreAlg.
 
 
 
